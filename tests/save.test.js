@@ -1,7 +1,7 @@
 // 저장·불러오기 규칙 테스트. 실행: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SAVE_KEY, newGame, serialize, deserialize, saveGame, loadGame } from '../js/rules/save.js';
+import { SAVE_KEY, newGame, serialize, deserialize, saveGame, loadGame, hasSavedGame } from '../js/rules/save.js';
 import { GROW_TIME, isReady, harvest } from '../js/rules/garden.js';
 import { brew } from '../js/rules/brew.js';
 
@@ -110,4 +110,13 @@ test('저장소를 쓸 수 없어도(사생활 보호 모드 등) 오류 없이 
   };
   assert.equal(saveGame(blocked, newGame(T0)), false);
   assert.deepEqual(loadGame(blocked, T0), newGame(T0));
+});
+
+test('hasSavedGame: 제대로 된 저장이 있을 때만 true (처음이면 프롤로그를 보여 주려고)', () => {
+  const storage = fakeStorage();
+  assert.equal(hasSavedGame(storage, T0), false);
+  saveGame(storage, newGame(T0));
+  assert.equal(hasSavedGame(storage, T0), true);
+  assert.equal(hasSavedGame(fakeStorage({ [SAVE_KEY]: '망가짐' }), T0), false);
+  assert.equal(hasSavedGame({ getItem() { throw new Error('막힘'); } }, T0), false);
 });

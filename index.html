@@ -29,6 +29,37 @@
       background: #D9757F; transform: rotate(-40deg);
     }
 
+    /* 하루 시간 게이지: 막대 위를 햇님·달님 아이콘이 왼쪽에서 오른쪽으로 지나간다 */
+    #dayGauge {
+      position: fixed; top: 62px; right: 12px; width: 150px; padding: 6px 10px 8px; box-sizing: border-box;
+      border-radius: 14px; background: rgba(255, 248, 236, 0.9); box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25);
+      font-size: 13px; pointer-events: none;
+    }
+    #dayGauge .label { display: flex; gap: 4px; align-items: center; font-weight: 700; margin-bottom: 6px; }
+    #dayGauge .track {
+      position: relative; height: 8px; border-radius: 999px;
+      background: linear-gradient(90deg, #F7C8D8 0%, #A8D8FF 8%, #A8D8FF 55%, #FFB59E 63%, #3F4C82 72%, #3F4C82 92%, #F7C8D8 100%);
+    }
+    #dayMarker { position: absolute; top: 50%; transform: translate(-50%, -50%); font-size: 15px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); }
+    @media (max-width: 480px) { #dayGauge { width: 112px; top: 60px; } #hud { right: 130px; } }
+
+    /* 프롤로그: 화면 아래 이야기 상자 */
+    #intro { position: fixed; left: 0; right: 0; bottom: 0; padding: 16px; display: flex; justify-content: center; }
+    #intro[hidden] { display: none; }
+    .intro-box {
+      width: min(520px, 100%); box-sizing: border-box; padding: 20px 22px 16px; border-radius: 22px;
+      background: rgba(255, 248, 236, 0.96); box-shadow: 0 6px 24px rgba(120, 90, 80, 0.25), 0 3px 0 rgba(160, 120, 100, 0.25);
+      cursor: pointer;
+    }
+    #introText { margin: 0 0 14px; min-height: 3em; font-size: 17px; line-height: 1.6; white-space: pre-line; animation: fadeUp 0.5s ease-out; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } }
+    .intro-actions { display: flex; align-items: center; gap: 10px; }
+    #introDots { display: flex; gap: 6px; margin-right: auto; }
+    #introDots span { width: 8px; height: 8px; border-radius: 50%; background: #E8D8C8; }
+    #introDots span.on { background: #FF9EBB; }
+    #introSkip { background: transparent; color: #B49A8A; font-size: 14px; padding: 8px; }
+    #introNext { padding: 10px 20px; border-radius: 999px; background: #FF9EBB; color: #FFFFFF; font-weight: 800; box-shadow: 0 3px 0 #E07A99; }
+
     /* 시작 화면 */
     #start {
       position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -74,6 +105,10 @@
 
     /* 아래쪽 버튼 줄 */
     #bar { position: fixed; right: 12px; bottom: 16px; display: flex; gap: 8px; }
+
+    /* 패널 뒤 반투명 막: 누르면 패널이 닫힌다 */
+    #scrim { position: fixed; inset: 0; background: rgba(90, 70, 80, 0.18); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    #scrim.show { opacity: 1; pointer-events: auto; }
     .round-btn {
       padding: 10px 16px; border-radius: 999px; background: #FFF8EC; font-size: 15px; font-weight: 700;
       box-shadow: 0 3px 0 rgba(160, 120, 100, 0.3);
@@ -125,7 +160,7 @@
       box-shadow: 0 3px 0 rgba(160, 120, 100, 0.25); font-size: 14px; line-height: 1.4; text-align: center;
       cursor: pointer; display: none;
     }
-    #bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
+    #bubble::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
     #bubble small { display: block; margin-top: 4px; font-size: 12px; color: #8876B8; font-weight: 700; }
     #bubble.show { display: block; }
     #bubble.pop { animation: pop 0.35s ease-out; }
@@ -168,6 +203,12 @@
     <button class="icon-btn" id="musicBtn" aria-label="배경음 켜고 끄기">🎵</button>
     <button class="icon-btn" id="sfxBtn" aria-label="효과음 켜고 끄기">🔊</button>
   </div>
+  <div id="dayGauge" aria-label="하루 시간">
+    <div class="label"><span id="dayIcon">☀️</span><span id="dayName">낮</span></div>
+    <div class="track"><span id="dayMarker">☀️</span></div>
+  </div>
+
+  <div id="scrim"></div>
 
   <div id="bar">
     <button class="round-btn" id="shopBtn">🛒 상점</button>
@@ -208,6 +249,18 @@
     <div id="codexDone" hidden>🎉 도감 완성! 물약 8종을 모두 발견했어요</div>
     <div id="codexGrid"></div>
   </section>
+  <!-- 프롤로그: 처음 온 사람에게만 보여 준다 -->
+  <div id="intro" hidden>
+    <div class="intro-box" id="introBox">
+      <p id="introText"></p>
+      <div class="intro-actions">
+        <div id="introDots"></div>
+        <button id="introSkip">건너뛰기</button>
+        <button id="introNext">다음 ▶</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 시작 화면: "가게 열기"를 누르는 순간 소리가 켜진다 (브라우저 자동 재생 정책) -->
   <div id="start">
     <h1>숲속 마법 물약 가게</h1>

@@ -96,3 +96,10 @@ export function loadGame(storage, now) {
   try { text = storage.getItem(SAVE_KEY); } catch { /* 읽을 수 없으면 새 게임 */ }
   return deserialize(text, now) ?? newGame(now);
 }
+
+// 이어서 할 저장 게임이 있는지 (없거나 깨졌으면 false → 처음 온 손님처럼 프롤로그를 보여 준다)
+export function hasSavedGame(storage, now) {
+  let text = null;
+  try { text = storage.getItem(SAVE_KEY); } catch { return false; }
+  return deserialize(text, now) !== null;
+}

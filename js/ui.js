@@ -40,13 +40,17 @@ export function toast(message, ms = 1400) {
 }
 
 // ───── 패널 열고 닫기 ─────
+// 패널이 열리면 뒤에 반투명 막(#scrim)을 깔아, 패널 바깥을 누르면 닫히게 한다
 function openPanel(id) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('open', p.id === id));
+  $('#scrim').classList.add('show');
 }
 export function closePanels() {
   document.querySelectorAll('.panel').forEach((p) => p.classList.remove('open'));
+  $('#scrim').classList.remove('show');
 }
 document.querySelectorAll('.panel .close').forEach((b) => b.addEventListener('click', closePanels));
+$('#scrim').addEventListener('click', closePanels);
 
 // ───── 솥 패널 ─────
 // 재료를 눌러 칸에 넣고(최대 3개), 다시 누르면 뺀다. 2~3개가 차면 "끓이기"가 켜진다.
@@ -143,8 +147,13 @@ export function setBubble(customer, discovered) {
 }
 export function placeBubble(x, y) {
   const el = $('#bubble');
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
+  // 요정이 화면 가장자리에 있어도 말풍선이 화면 밖으로 잘리지 않게 안쪽으로 밀어 준다
+  const half = el.offsetWidth / 2 + 8;
+  const cx = Math.min(Math.max(x, half), window.innerWidth - half);
+  el.style.left = `${cx}px`;
+  el.style.top = `${Math.max(y, el.offsetHeight + 8)}px`;
+  // 꼬리는 원래 요정 위치를 가리키도록
+  el.style.setProperty('--tail', `${x - cx}px`);
 }
 
 // ───── 물약 건네기 패널 ─────

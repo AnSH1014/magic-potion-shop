@@ -358,7 +358,7 @@ export function buildIsland() {
 
   const shop = buildShop();
   shop.position.set(-1.6, 0, -0.6);
-  shop.rotation.y = 0.15;
+  shop.rotation.y = 0;
   island.add(shop);
 
   const cauldron = buildCauldron();
@@ -367,12 +367,12 @@ export function buildIsland() {
 
   const garden = buildGarden();
   garden.position.set(2.7, 0, -1.6);
-  garden.rotation.y = -0.2;
+  garden.rotation.y = 0;
   island.add(garden);
 
   // 상자와 장식 병 (솥 옆)
-  island.add(mesh(G.box, mat(PALETTE.wood), { pos: [-3.3, 0.3, 1.6], scale: [0.7, 0.6, 0.6] }));
-  island.add(mesh(G.box, mat(PALETTE.woodDark), { pos: [-3.25, 0.62, 1.6], scale: [0.75, 0.05, 0.65] }));
+  island.add(mesh(G.box, mat(PALETTE.wood), { pos: [0.55, 0.3, 0.75], scale: [0.7, 0.6, 0.6] }));
+  island.add(mesh(G.box, mat(PALETTE.woodDark), { pos: [0.55, 0.62, 0.75], scale: [0.75, 0.05, 0.65] }));
 
   island.add(buildPath());
 

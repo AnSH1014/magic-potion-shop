@@ -14,7 +14,7 @@ import { buildIsland, buildSky, PALETTE } from './scene.js';
 import { createGardenView, plotIndexOf } from './garden.js';
 import { harvest } from './rules/garden.js';
 import { brew, isCodexComplete } from './rules/brew.js';
-import { loadGame, saveGame } from './rules/save.js';
+import { loadGame, saveGame, hasSavedGame } from './rules/save.js';
 import { nextCustomer, serveCustomer, canBuySeed, buySeed, plantSeed } from './rules/shop.js';
 import { INGREDIENTS } from './data.js';
 import {
@@ -77,6 +77,9 @@ const storage = {
 };
 
 // 게임 상태: 저장된 게임이 있으면 이어서, 없거나 깨졌으면 새 게임
+// 이어서 할 저장이 없으면 처음 온 것 → 가게를 열 때 프롤로그를 보여 준다
+const firstVisit = !hasSavedGame(storage, Date.now());
+
 const state = {
   ...loadGame(storage, Date.now()),
   customer: null,   // 지금 와 있는 손님 { wish } (없으면 null, 저장하지 않음)
@@ -130,7 +133,7 @@ document.getElementById('codexBtn').addEventListener('click', () => openCodex(st
 
 // ───── 요정 손님 ─────
 // 가게 창구 앞에 서서 카메라 쪽을 비스듬히 바라본다
-const fairy = createFairy(scene, new THREE.Vector3(0.5, 0, 1.7), 0.3);
+const fairy = createFairy(scene, new THREE.Vector3(-3.0, 0, 1.4), 0.35);
 
 // 손님 모습은 꽃·크리스탈·버섯·별 요정 중 하나 (바로 앞 손님과 다른 요정으로)
 let lastLook = null;
@@ -179,8 +182,51 @@ document.getElementById('openBtn').addEventListener('click', () => {
   sound.start();
   sound.sfx.chime(true);
   document.getElementById('start').classList.add('hide');
-  setTimeout(callCustomer, 1200); // 가게를 열면 첫 손님이 온다
+  if (firstVisit) playIntro(() => setTimeout(callCustomer, 600));
+  else setTimeout(callCustomer, 1200); // 가게를 열면 첫 손님이 온다
 });
+
+// ───── 프롤로그 (처음 한 번) ─────
+// 카메라가 하늘에서 섬으로 날아 내려오는 동안 이야기 상자가 한 장씩 넘어간다
+// (\n 은 줄바꿈. 이야기 상자에서 두 줄로 보인다)
+const INTRO = [
+  '구름 위에 둥실 떠 있는\n작은 숲속 섬이 있어요… ☁️',
+  '섬에는 오래된 마법 물약 가게가 있어요.\n오늘부터 당신이 이 가게의 주인이에요!',
+  '🌱 뒤뜰 정원에서 재료를 기르고\n🫧 솥에 재료 2~3가지를 넣어 끓이면 물약이 완성돼요.',
+  '🧚 요정 손님이 소원을 말하면 꼭 맞는 물약을 건네주세요.\n받은 코인으로 새 씨앗도 살 수 있어요.',
+  '숨은 레시피 8가지를 모두 찾아\n📖 도감을 완성해 보세요. 자, 가게를 열어 볼까요?',
+];
+function playIntro(done) {
+  const box = document.getElementById('intro');
+  const text = document.getElementById('introText');
+  const next = document.getElementById('introNext');
+  const dots = document.getElementById('introDots');
+  let i = 0;
+  const show = () => {
+    text.textContent = INTRO[i];
+    text.style.animation = 'none'; void text.offsetWidth; text.style.animation = ''; // 글자가 다시 스르륵 나타나게
+    dots.innerHTML = INTRO.map((_, j) => `<span class="${j === i ? 'on' : ''}"></span>`).join('');
+    next.textContent = i === INTRO.length - 1 ? '시작하기!' : '다음 ▶';
+  };
+  const finish = () => {
+    box.hidden = true;
+    box.onclick = null;
+    document.getElementById('introSkip').onclick = null;
+    if (flight) flight.t = flight.seconds; // 건너뛰면 카메라도 바로 제자리로
+    saveGame(storage, state);              // 다음부터는 프롤로그 없이 바로 시작
+    done();
+  };
+  box.onclick = (e) => {
+    if (e.target.id === 'introSkip') return;
+    sound.sfx.tick();
+    i++;
+    if (i >= INTRO.length) finish(); else show();
+  };
+  document.getElementById('introSkip').onclick = (e) => { e.stopPropagation(); sound.sfx.tick(); finish(); };
+  flyIn(5);
+  box.hidden = false;
+  show();
+}
 
 // 음악·효과음 켜고 끄기
 const musicBtn = document.getElementById('musicBtn');
@@ -229,16 +275,25 @@ function onEmptyPlot(index) {
 }
 
 // 카메라 조작
+// 기본 구도(목업처럼): 가게 정면을 약간 위에서 바라본다. 솥이 가운데 앞, 정원이 오른쪽, 하늘이 위쪽에 보인다.
+const HOME_TARGET = new THREE.Vector3(0.3, 1.0, -0.3);
+const HOME_DIR = new THREE.Vector3(0.4, 4.6, 13.2).normalize();
+const HOME_DIST = 14;
+camera.position.copy(HOME_TARGET).addScaledVector(HOME_DIR, HOME_DIST);
+
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0.8, 0);     // 섬 가운데를 바라보며 돈다
+controls.target.copy(HOME_TARGET);  // 섬 가운데를 바라보며 돈다
 controls.enableDamping = true;      // 손을 놓아도 부드럽게 멈춘다
 controls.dampingFactor = 0.08;
 controls.enablePan = false;         // 섬이 화면 밖으로 밀려나지 않게 이동은 막는다
-controls.minDistance = 9;           // 너무 가까이 / 멀리 가지 않게
+controls.minDistance = 8;           // 너무 가까이 / 멀리 가지 않게
 controls.maxDistance = 30;
-controls.minPolarAngle = 0.35;      // 너무 위에서 내려다보거나
+controls.minPolarAngle = 0.5;       // 너무 위에서 내려다보거나
 controls.maxPolarAngle = 1.45;      // 섬 아래로 들어가지 않게
 controls.update();
+
+// 화면 비율에 맞는 기본 거리: 세로로 긴 휴대폰에서는 섬 양옆이 잘리지 않게 더 멀리서 본다
+let homeDist = HOME_DIST;
 
 // 화면 크기에 맞추기 (PC·휴대폰 반응형)
 function resize() {
@@ -247,17 +302,35 @@ function resize() {
   renderer.setSize(w, h, false);
   const aspect = w / h;
   camera.aspect = aspect;
-  // 세로로 긴 휴대폰 화면에서는 섬 양옆이 잘리지 않게 시야를 넓히고 멀리서 본다
   camera.fov = aspect < 1 ? 50 : 40;
   camera.updateProjectionMatrix();
-  const dist = 20 * Math.max(1, 0.55 / aspect);
-  controls.maxDistance = dist * 1.5;
+  homeDist = HOME_DIST * Math.max(1, 0.9 / aspect);
+  controls.maxDistance = homeDist * 1.6;
   // 지금 보는 방향은 그대로 두고 거리만 바꾼다
   const dir = camera.position.clone().sub(controls.target).normalize();
-  camera.position.copy(controls.target).addScaledVector(dir, dist);
+  camera.position.copy(controls.target).addScaledVector(dir, homeDist);
 }
 window.addEventListener('resize', resize);
 resize();
+
+// ───── 카메라 날아오기 (프롤로그용) ─────
+// 하늘 높은 곳에서 섬 쪽으로 천천히 내려와 기본 구도에 멈춘다
+let flight = null;
+function flyIn(seconds) {
+  const from = new THREE.Vector3(-6, 26, 44);
+  const to = HOME_TARGET.clone().addScaledVector(HOME_DIR, homeDist);
+  flight = { t: 0, seconds, from, to };
+  controls.enabled = false;
+  camera.position.copy(from);
+}
+function updateFlight(dt) {
+  if (!flight) return;
+  flight.t += dt;
+  const k = Math.min(1, flight.t / flight.seconds);
+  const e = 1 - (1 - k) ** 3; // 처음엔 빠르게, 끝에서 사뿐히
+  camera.position.lerpVectors(flight.from, flight.to, e);
+  if (k >= 1) { flight = null; controls.enabled = true; }
+}
 
 // ───── 클릭·터치로 물체 고르기 ─────
 // Raycaster(레이캐스터): 카메라에서 화면의 한 점을 향해 보이지 않는 광선을 쏴서
@@ -341,7 +414,8 @@ function tick() {
   gardenView.update(state.garden, Date.now(), time);
   fx.tick(dt);
   fairy.update(dt, time);
-  dayNight.update(Date.now());
+  dayNight.update(Date.now(), camera);
+  updateFlight(dt);
   controls.update();
   updateBubble();
   renderer.render(scene, camera);
