@@ -80,6 +80,35 @@
     /* 물약 병 아이콘: 둥근 몸통 + 병목을 CSS로 */
     .bottle { position: relative; width: 34px; height: 34px; margin-top: 10px; border-radius: 50%; background: var(--c); box-shadow: inset -4px -4px 0 rgba(0,0,0,0.08); }
     .bottle::before { content: ''; position: absolute; left: 11px; top: -10px; width: 12px; height: 12px; border-radius: 3px; background: #C98E6A; }
+    .card.wanted { outline: 2px dashed #FFB3C6; }
+    .card .hint { color: #6B4F45; background: #FFF1C8; border-radius: 8px; padding: 4px 6px; }
+
+    .chip.coin { background: #FFE9B0; font-weight: 700; }
+
+    /* 요정 말풍선: 화면 좌표에 맞춰 위치를 옮긴다 */
+    #bubble {
+      position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
+      max-width: 240px; padding: 10px 14px; border-radius: 16px; background: #FFFFFF;
+      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.25); font-size: 14px; line-height: 1.4; text-align: center;
+      cursor: pointer; display: none;
+    }
+    #bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
+    #bubble small { display: block; margin-top: 4px; font-size: 12px; color: #8876B8; font-weight: 700; }
+    #bubble.show { display: block; }
+    #bubble.pop { animation: pop 0.35s ease-out; }
+    @keyframes pop { 0% { transform: translate(-50%, -100%) scale(0.6); } 60% { transform: translate(-50%, -100%) scale(1.08); } }
+
+    #giveWish { margin: -4px 0 12px; font-size: 15px; }
+    #giveList, #plantList { display: flex; flex-wrap: wrap; gap: 8px; }
+    .empty { margin: 4px 0; color: #9A8075; font-size: 14px; }
+
+    #shopCoins { margin-left: 4px; font-size: 15px; padding: 2px 10px; border-radius: 999px; background: #FFE9B0; }
+    .seed { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 8px; border-radius: 16px; background: #FFFFFF; }
+    .seed .info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .seed small, .note { font-size: 12px; color: #9A8075; }
+    .dot.big { width: 28px; height: 28px; }
+    .buy { padding: 9px 14px; border-radius: 12px; background: #FFD37A; font-weight: 700; box-shadow: 0 2px 0 #E0B45A; }
+    .buy:disabled { background: #EDE3D6; color: #B9AEB8; box-shadow: none; cursor: default; }
   </style>
 
   <!--
@@ -100,9 +129,32 @@
   <div id="hud"></div>
   <div id="toast"></div>
 
+  <div id="bubble"></div>
+
   <div id="bar">
+    <button class="round-btn" id="shopBtn">🛒 상점</button>
     <button class="round-btn" id="codexBtn">📖 도감</button>
   </div>
+
+  <!-- 요정에게 물약 건네기: 요정이나 말풍선을 누르면 열린다 -->
+  <section class="panel" id="givePanel">
+    <h2>🧚 물약 건네기 <button class="close" aria-label="닫기">✕</button></h2>
+    <p id="giveWish"></p>
+    <div id="giveList"></div>
+  </section>
+
+  <!-- 씨앗 상점 -->
+  <section class="panel" id="shopPanel">
+    <h2>🛒 씨앗 상점 <span id="shopCoins"></span> <button class="close" aria-label="닫기">✕</button></h2>
+    <div id="shopList"></div>
+    <p class="note">산 씨앗은 정원의 빈 밭을 눌러 심어요.</p>
+  </section>
+
+  <!-- 빈 밭에 심기 -->
+  <section class="panel" id="plantPanel">
+    <h2>🌱 어떤 씨앗을 심을까요? <button class="close" aria-label="닫기">✕</button></h2>
+    <div id="plantList"></div>
+  </section>
 
   <!-- 솥 패널: 솥을 누르면 열린다 -->
   <section class="panel" id="brewPanel">

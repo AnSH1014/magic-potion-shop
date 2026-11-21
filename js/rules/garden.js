@@ -30,13 +30,15 @@ export function createGarden(now) {
   return { plots };
 }
 
-// 새 가방: 재료마다 0개, 물약마다 0개
+// 새 가방: 재료마다 0개, 물약마다 0개, 코인 0, 상점 씨앗마다 0개
 export function createInventory() {
   const ingredients = {};
   for (const i of INGREDIENTS) ingredients[i.id] = 0;
   const potions = {};
   for (const p of POTIONS) potions[p.id] = 0;
-  return { ingredients, potions };
+  const seeds = {};
+  for (const i of INGREDIENTS) if (!i.starter) seeds[i.id] = 0;
+  return { ingredients, potions, coins: 0, seeds };
 }
 
 // 0(막 심음) ~ 1(다 자람)

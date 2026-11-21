@@ -8,7 +8,8 @@ const $ = (sel) => document.querySelector(sel);
 // ───── 보유 재료 ─────
 // 씨앗으로 여는 재료는 아직 없으면 흐리게 보인다.
 export function renderInventory(inventory, unlocked) {
-  $('#hud').innerHTML = INGREDIENTS.map((ing) => {
+  const coinChip = `<div class="chip coin" data-id="coins"><span class="name">🪙</span><b class="count">${inventory.coins}</b></div>`;
+  $('#hud').innerHTML = coinChip + INGREDIENTS.map((ing) => {
     const count = inventory.ingredients[ing.id];
     const dim = !unlocked.has(ing.id) && count === 0;
     return `<div class="chip${dim ? ' dim' : ''}" data-id="${ing.id}">
@@ -106,12 +107,17 @@ $('#brewBtn').addEventListener('click', () => {
 });
 
 // ───── 도감 ─────
-export function openCodex(inventory, codex) {
+// hintFor: 손님이 원하는 물약 id. 아직 발견하지 못했다면 그 칸에 힌트 한 줄을 보여 준다.
+export function openCodex(inventory, codex, hintFor) {
   const found = new Set(codex.discovered);
   $('#codexCount').textContent = `${found.size} / ${POTIONS.length}`;
   $('#codexDone').hidden = found.size < POTIONS.length;
   $('#codexGrid').innerHTML = POTIONS.map((p) => {
     if (!found.has(p.id)) {
+      if (p.id === hintFor) {
+        return `<div class="card unknown wanted"><div class="bottle" style="--c:${p.color}"></div><b>???</b>
+          <small>🧚 손님이 찾는 물약</small><small class="hint">💡 ${p.hint}</small></div>`;
+      }
       return `<div class="card unknown"><div class="bottle" style="--c:#D9D2DE"></div><b>???</b><small>아직 발견하지 못했어요</small></div>`;
     }
     const recipe = p.recipe.map((id) => ING[id].name).join(' + ');
@@ -119,4 +125,80 @@ export function openCodex(inventory, codex) {
       <small>${recipe}</small><small class="own">보유 ${inventory.potions[p.id]}개</small></div>`;
   }).join('');
   openPanel('codexPanel');
+}
+
+// ───── 요정 손님 말풍선 ─────
+// 3D 장면 속 요정 머리 위 화면 좌표(x, y)에 HTML 말풍선을 붙인다.
+export function setBubble(customer, discovered) {
+  const el = $('#bubble');
+  if (!customer) { el.classList.remove('show'); return; }
+  const p = POTIONS.find((x) => x.id === customer.wish);
+  const sub = discovered.includes(p.id)
+    ? `<small>👉 ${p.name}</small>`
+    : `<small>❓ 처음 보는 물약이에요. 도감에 힌트가 있어요</small>`;
+  el.innerHTML = `${p.wish}${sub}`;
+  el.classList.remove('show', 'pop');
+  void el.offsetWidth;
+  el.classList.add('show', 'pop');
+}
+export function placeBubble(x, y) {
+  const el = $('#bubble');
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+}
+
+// ───── 물약 건네기 패널 ─────
+export function openGivePanel(inventory, customer, onGive) {
+  const wish = POTIONS.find((x) => x.id === customer.wish);
+  $('#giveWish').textContent = `“${wish.wish}”`;
+  const owned = POTIONS.filter((p) => inventory.potions[p.id] > 0);
+  $('#giveList').innerHTML = owned.length
+    ? owned.map((p) => `<button class="pick" data-id="${p.id}"><span class="dot" style="background:${p.color}"></span>${p.name} <b>${inventory.potions[p.id]}</b></button>`).join('')
+    : `<p class="empty">아직 건넬 물약이 없어요. 솥에서 물약을 만들어 보세요!</p>`;
+  $('#giveList').onclick = (e) => {
+    const b = e.target.closest('[data-id]');
+    if (!b) return;
+    closePanels();
+    onGive(b.dataset.id);
+  };
+  openPanel('givePanel');
+}
+
+// ───── 씨앗 상점 ─────
+// canBuy(id) → { ok, reason }, onBuy(id) 는 main.js 에서 규칙 모듈과 연결해 넘겨준다.
+const BUY_REASON = { coins: '코인이 부족해요', noRoom: '빈 밭이 없어요' };
+export function openShop(inventory, canBuy, onBuy) {
+  const render = () => {
+    $('#shopCoins').textContent = `🪙 ${inventory.coins}`;
+    $('#shopList').innerHTML = INGREDIENTS.filter((i) => !i.starter).map((s) => {
+      const c = canBuy(s.id);
+      return `<div class="seed">
+        <span class="dot big" style="background:${s.color}"></span>
+        <div class="info"><b>${s.name} 씨앗</b><small>가진 씨앗 ${inventory.seeds[s.id]}개${c.ok ? '' : ` · ${BUY_REASON[c.reason]}`}</small></div>
+        <button class="buy" data-id="${s.id}" ${c.ok ? '' : 'disabled'}>🪙 ${s.seedPrice}</button>
+      </div>`;
+    }).join('');
+  };
+  $('#shopList').onclick = (e) => {
+    const b = e.target.closest('button[data-id]');
+    if (!b || b.disabled) return;
+    onBuy(b.dataset.id);
+    render();
+  };
+  render();
+  openPanel('shopPanel');
+}
+
+// ───── 빈 밭에 씨앗 심기 ─────
+export function openPlantPanel(inventory, onPlant) {
+  const owned = INGREDIENTS.filter((i) => !i.starter && inventory.seeds[i.id] > 0);
+  $('#plantList').innerHTML = owned.map((s) =>
+    `<button class="pick" data-id="${s.id}"><span class="dot" style="background:${s.color}"></span>${s.name} 씨앗 <b>${inventory.seeds[s.id]}</b></button>`).join('');
+  $('#plantList').onclick = (e) => {
+    const b = e.target.closest('[data-id]');
+    if (!b) return;
+    closePanels();
+    onPlant(b.dataset.id);
+  };
+  openPanel('plantPanel');
 }

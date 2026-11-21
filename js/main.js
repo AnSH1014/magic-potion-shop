@@ -14,9 +14,14 @@ import { buildIsland, buildSky, PALETTE } from './scene.js';
 import { createGardenView, plotIndexOf } from './garden.js';
 import { createGarden, createInventory, harvest } from './rules/garden.js';
 import { createCodex, brew, isCodexComplete } from './rules/brew.js';
+import { nextCustomer, serveCustomer, canBuySeed, buySeed, plantSeed } from './rules/shop.js';
 import { INGREDIENTS } from './data.js';
-import { renderInventory, bumpChip, toast, openBrewPanel, openCodex } from './ui.js';
+import {
+  renderInventory, bumpChip, toast, openBrewPanel, openCodex,
+  setBubble, placeBubble, openGivePanel, openShop, openPlantPanel,
+} from './ui.js';
 import { createFx } from './brewfx.js';
+import { createFairy } from './fairy.js';
 
 const canvas = document.getElementById('game');
 
@@ -62,6 +67,8 @@ const state = {
   garden: createGarden(Date.now()),
   inventory: createInventory(),
   codex: createCodex(),
+  customer: null,   // 지금 와 있는 손님 { wish } (없으면 null)
+  lastWish: null,   // 바로 앞 손님의 소원 (같은 소원이 연달아 나오지 않게)
 };
 const gardenView = createGardenView(gardenGroup);
 const fx = createFx(scene);
@@ -89,12 +96,74 @@ function onBrew(ids) {
     return;
   }
   fx.potionRise(r.potion, cauldronTop);
+  // 손님이 찾던 물약을 막 발견했다면 말풍선의 "처음 보는 물약" 안내를 물약 이름으로 바꾼다
+  if (r.isNew && state.customer?.wish === r.potion.id) setBubble(state.customer, state.codex.discovered);
   if (!r.isNew) toast(`${r.potion.name} 완성!`, 2000);
   else if (isCodexComplete(state.codex)) toast(`🎉 ${r.potion.name} 발견! 도감 완성!`, 3500);
   else toast(`✨ 새 물약 발견! ${r.potion.name}`, 2600);
 }
 
-document.getElementById('codexBtn').addEventListener('click', () => openCodex(state.inventory, state.codex));
+document.getElementById('codexBtn').addEventListener('click', () => openCodex(state.inventory, state.codex, state.customer?.wish));
+
+// ───── 요정 손님 ─────
+// 가게 창구 앞에 서서 카메라 쪽을 비스듬히 바라본다
+const fairy = createFairy(scene, new THREE.Vector3(0.5, 0, 1.7), 0.3);
+
+function callCustomer() {
+  state.customer = nextCustomer(state.garden, state.lastWish);
+  fairy.arrive(() => setBubble(state.customer, state.codex.discovered));
+}
+
+function onGive(potionId) {
+  const r = serveCustomer(state.inventory, state.customer, potionId);
+  if (r.ok) {
+    renderInventory(state.inventory, unlockedSet());
+    bumpChip('coins');
+    toast(`고마워요! 🪙 ${r.coins} 코인을 받았어요`, 2200);
+    state.lastWish = state.customer.wish;
+    state.customer = null;
+    setBubble(null);
+    fairy.leave();
+    setTimeout(callCustomer, 3000); // 잠시 뒤 다음 손님
+  } else if (r.reason === 'wrong') {
+    // 받지 않고 고개를 저으며 소원을 다시 말한다
+    fairy.shake();
+    setBubble(state.customer, state.codex.discovered);
+    toast('이 물약이 아니에요…');
+  }
+}
+
+function talkToCustomer() {
+  if (state.customer && fairy.mode === 'waiting') openGivePanel(state.inventory, state.customer, onGive);
+}
+document.getElementById('bubble').addEventListener('click', talkToCustomer);
+setTimeout(callCustomer, 1200);
+
+// ───── 씨앗 상점과 심기 ─────
+document.getElementById('shopBtn').addEventListener('click', () => {
+  openShop(
+    state.inventory,
+    (id) => canBuySeed(state.inventory, state.garden, id),
+    (id) => {
+      if (buySeed(state.inventory, state.garden, id).ok) {
+        renderInventory(state.inventory, unlockedSet());
+        toast('씨앗을 샀어요! 정원의 빈 밭을 눌러 심어요', 2200);
+      }
+    },
+  );
+});
+
+function onEmptyPlot(index) {
+  const hasSeed = Object.values(state.inventory.seeds).some((n) => n > 0);
+  if (!hasSeed) return toast('빈 밭이에요. 상점에서 씨앗을 사 보세요');
+  openPlantPanel(state.inventory, (seedId) => {
+    if (plantSeed(state.inventory, state.garden, index, seedId, Date.now()).ok) {
+      renderInventory(state.inventory, unlockedSet());
+      const name = INGREDIENTS.find((x) => x.id === seedId).name;
+      toast(`${name} 씨앗을 심었어요 🌱`);
+    }
+  });
+}
 
 // 카메라 조작
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -133,17 +202,22 @@ resize();
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-// 누른 곳에 있는 것을 알려 준다: { type: 'plot', index } / { type: 'cauldron' } / null
+// 누른 곳에 있는 것을 알려 준다: { type: 'plot', index } / { type: 'cauldron' } / { type: 'fairy' } / null
 function pick(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   // 화면 좌표를 -1 ~ 1 범위(왼쪽 아래가 -1)로 바꿔야 레이캐스터가 이해한다
   pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  // 광선에 맞은 물체들(가까운 순) 중 솥이거나 밭·재료인 첫 번째를 고른다.
+  // 광선에 맞은 물체들(가까운 순) 중 솥·요정이거나 밭·재료인 첫 번째를 고른다.
   // 울타리를 살짝 같이 눌러도 그 뒤의 재료가 선택되어 손가락으로 누르기 쉽다.
-  for (const hit of raycaster.intersectObjects([gardenGroup, cauldron], true)) {
-    for (let o = hit.object; o; o = o.parent) if (o === cauldron) return { type: 'cauldron' };
+  const targets = [gardenGroup, cauldron];
+  if (fairy.group.visible) targets.push(fairy.group);
+  for (const hit of raycaster.intersectObjects(targets, true)) {
+    for (let o = hit.object; o; o = o.parent) {
+      if (o === cauldron) return { type: 'cauldron' };
+      if (o === fairy.group) return { type: 'fairy' };
+    }
     const i = plotIndexOf(hit.object);
     if (i >= 0) return { type: 'plot', index: i };
   }
@@ -153,10 +227,9 @@ function pick(clientX, clientY) {
 function onTap(clientX, clientY) {
   const target = pick(clientX, clientY);
   if (!target) return;
-  if (target.type === 'cauldron') {
-    openBrewPanel(state.inventory, unlockedSet(), onBrew);
-    return;
-  }
+  if (target.type === 'cauldron') return openBrewPanel(state.inventory, unlockedSet(), onBrew);
+  if (target.type === 'fairy') return talkToCustomer();
+  if (!state.garden.plots[target.index].crop) return onEmptyPlot(target.index);
   const result = harvest(state.garden, state.inventory, target.index, Date.now());
   if (result.ok) {
     const name = INGREDIENTS.find((x) => x.id === result.crop).name;
@@ -179,9 +252,17 @@ canvas.addEventListener('pointerup', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons) return;
   const t = pick(e.clientX, e.clientY);
-  const clickable = t && (t.type === 'cauldron' || state.garden.plots[t.index].crop);
-  canvas.style.cursor = clickable ? 'pointer' : '';
+  canvas.style.cursor = t ? 'pointer' : '';
 });
+
+// 요정 머리 위 3D 위치를 화면 좌표로 바꿔 말풍선을 붙인다
+// (project(): 3D 좌표를 카메라 화면의 -1 ~ 1 좌표로 바꿔 준다)
+const anchor = new THREE.Vector3();
+function updateBubble() {
+  anchor.copy(fairy.bubbleAnchor()).project(camera);
+  const rect = canvas.getBoundingClientRect();
+  placeBubble(rect.left + (anchor.x + 1) / 2 * rect.width, rect.top + (1 - anchor.y) / 2 * rect.height);
+}
 
 // 매 프레임 실행되는 반복문
 const clock = new THREE.Clock();
@@ -190,7 +271,9 @@ function tick() {
   const time = clock.elapsedTime;
   gardenView.update(state.garden, Date.now(), time);
   fx.tick(dt);
+  fairy.update(dt, time);
   controls.update();
+  updateBubble();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
