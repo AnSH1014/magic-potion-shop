@@ -4,179 +4,263 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>숲속 마법 물약 가게</title>
+  <!-- 동글동글한 한글 글꼴 (불러오지 못해도 기본 글꼴로 보인다) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --ink: #6B4F45;          /* 글자색: 따뜻한 갈색 */
+      --cream: #FFF8EC;        /* 버튼·패널 바탕 */
+      --cream-deep: #F6EAD8;   /* 칸 바탕 */
+      --shadow: rgba(160, 120, 100, 0.32);
+      --pink: #FF8FB1;
+      --pink-deep: #E0708F;
+      --purple: #8876B8;
+      --round: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #A8D8FF; }
+    body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
     /* three.js가 그림을 그리는 캔버스. 화면 전체를 채운다. */
     #game { display: block; width: 100%; height: 100%; touch-action: none; }
+    button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+    .ico svg, svg { display: block; width: 100%; height: 100%; }
+    .bump { animation: bump 0.4s ease-out; }
+    @keyframes bump { 35% { transform: scale(1.15); } }
 
-    body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #6B4F45; }
-    /* 보유 재료 */
-    #hud {
-      position: fixed; top: 12px; left: 12px; right: 120px;
-      display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
+    /* 동글동글 두툼한 크림색 버튼 공통 모양 */
+    .puffy {
+      background: var(--cream); border-radius: 22px;
+      box-shadow: 0 4px 0 var(--shadow), 0 6px 14px rgba(120, 90, 80, 0.12);
     }
+    .puffy:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--shadow); }
 
-    /* 오른쪽 위 소리 버튼 (음악 / 효과음) */
-    #soundBar { position: fixed; top: 10px; right: 12px; display: flex; gap: 8px; }
-    .icon-btn {
-      width: 44px; height: 44px; border-radius: 50%; background: #FFF8EC; font-size: 20px;
-      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.3); position: relative;
+    /* ───── 왼쪽 위: 코인 배지 ───── */
+    #coinBadge {
+      position: fixed; top: 12px; left: 12px; display: flex; align-items: center;
+      height: 46px; padding: 0 22px 0 4px; border-radius: 999px; pointer-events: none;
     }
-    .icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(160, 120, 100, 0.3); }
-    .icon-btn.off { opacity: 0.55; }
+    #coinIcon { width: 40px; height: 40px; filter: drop-shadow(0 2px 0 rgba(200, 140, 40, 0.4)); }
+    #coinCount { font-family: var(--round); font-size: 26px; margin-left: 10px; min-width: 2ch; }
+
+    /* ───── 오른쪽 위: 음악·효과음·도감 배지 ───── */
+    #topRight { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; }
+    .icon-btn { width: 46px; height: 46px; border-radius: 50%; padding: 10px; box-sizing: border-box; position: relative; }
+    .icon-btn.off { opacity: 0.5; }
     .icon-btn.off::after { /* 꺼짐 표시: 비스듬한 줄 */
       content: ''; position: absolute; left: 9px; right: 9px; top: 50%; height: 3px; border-radius: 2px;
       background: #D9757F; transform: rotate(-40deg);
     }
+    #codexBadge { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px 0 8px; border-radius: 999px; }
+    #codexBadgeIcon { width: 32px; height: 32px; }
+    #codexBadgeCount { font-family: var(--round); font-size: 22px; }
 
     /* 하루 시간 게이지: 막대 위를 햇님·달님 아이콘이 왼쪽에서 오른쪽으로 지나간다 */
     #dayGauge {
-      position: fixed; top: 62px; right: 12px; width: 150px; padding: 6px 10px 8px; box-sizing: border-box;
-      border-radius: 14px; background: rgba(255, 248, 236, 0.9); box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25);
+      position: fixed; top: 68px; right: 12px; width: 150px; padding: 6px 10px 8px; box-sizing: border-box;
+      border-radius: 14px; background: rgba(255, 248, 236, 0.85); box-shadow: 0 2px 0 var(--shadow);
       font-size: 13px; pointer-events: none;
     }
-    #dayGauge .label { display: flex; gap: 4px; align-items: center; font-weight: 700; margin-bottom: 6px; }
+    #dayGauge .label { display: flex; gap: 4px; align-items: center; font-family: var(--round); margin-bottom: 6px; }
     #dayGauge .track {
       position: relative; height: 8px; border-radius: 999px;
       background: linear-gradient(90deg, #F7C8D8 0%, #A8D8FF 8%, #A8D8FF 55%, #FFB59E 63%, #3F4C82 72%, #3F4C82 92%, #F7C8D8 100%);
     }
     #dayMarker { position: absolute; top: 50%; transform: translate(-50%, -50%); font-size: 15px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); }
-    @media (max-width: 480px) { #dayGauge { width: 112px; top: 60px; } #hud { right: 130px; } }
+
+    /* ───── 아래: 솥 칸 + 끓이기 | 가방·도감·상점 ───── */
+    #bottom {
+      position: fixed; left: 0; right: 0; bottom: 0; padding: 12px;
+      display: flex; flex-wrap: wrap-reverse; justify-content: center; align-items: flex-end; gap: 12px 18px;
+      pointer-events: none;
+    }
+    #bottom > * { pointer-events: auto; }
+    #tray { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 26px; }
+    #slots { display: flex; gap: 8px; }
+    .slot {
+      position: relative; width: 64px; height: 64px; border-radius: 18px; background: var(--cream-deep);
+      box-shadow: inset 0 3px 0 rgba(160, 120, 100, 0.15); padding: 9px; box-sizing: border-box;
+    }
+    .slot .plus { font-family: var(--round); font-size: 28px; color: #D2BBA6; line-height: 46px; display: block; }
+    .slot.full { background: #FFF1DC; box-shadow: 0 3px 0 var(--shadow); animation: bump 0.3s ease-out; }
+    .slot .x {
+      position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
+      background: #7A5E54; color: #FFFFFF; font-size: 12px; line-height: 22px; border: 2px solid var(--cream);
+    }
+    #brewBtn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      width: 116px; height: 70px; border-radius: 26px; background: var(--pink); color: #FFFFFF;
+      font-family: var(--round); font-size: 24px; box-shadow: 0 5px 0 var(--pink-deep);
+      border: 3px solid #FFD6E2;
+    }
+    #brewBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--pink-deep); }
+    #brewBtn:disabled { background: #F3C9D6; box-shadow: 0 5px 0 #E3AFC0; opacity: 0.85; cursor: default; transform: none; }
+    #brewBtn .pot { font-size: 18px; line-height: 1; }
+    #menu { display: flex; gap: 10px; }
+    .menu-btn { position: relative; width: 78px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .menu-btn .ico { width: 40px; height: 40px; }
+    .menu-btn .lb { font-family: var(--round); font-size: 15px; }
+
+    /* 수확할 때 가방 위로 떠오르는 "+1" */
+    .floater {
+      position: absolute; left: 50%; top: -6px; display: flex; align-items: center; gap: 2px;
+      transform: translateX(-50%); animation: floatUp 0.9s ease-out forwards; pointer-events: none;
+      font-family: var(--round); font-size: 16px; color: #5FA84B; text-shadow: 0 1px 0 #FFFFFF;
+    }
+    .floater svg { width: 22px; height: 22px; }
+    @keyframes floatUp { from { opacity: 0; transform: translate(-50%, 10px); } 25% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -34px); } }
+
+    /* 짧은 안내 */
+    #toast {
+      position: fixed; left: 50%; bottom: 118px; transform: translate(-50%, 16px);
+      padding: 10px 18px; border-radius: 999px; background: rgba(255, 248, 236, 0.96);
+      box-shadow: 0 3px 0 var(--shadow); font-size: 15px; font-family: var(--round);
+      opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap; z-index: 20;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* 패널 뒤 반투명 막: 누르면 패널이 닫힌다 */
+    #scrim { position: fixed; inset: 0; background: rgba(90, 70, 80, 0.2); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    #scrim.show { opacity: 1; pointer-events: auto; }
+    /* 가방을 열었을 때는 솥 칸이 막 위로 올라와, 재료를 고르면서 칸이 채워지는 게 보인다 */
+    body.bag-open #bottom { z-index: 3; }
+    body.bag-open #menu { visibility: hidden; }
+
+    /* ───── 패널: 화면 아래에서 올라오는 카드 ───── */
+    .panel {
+      position: fixed; left: 50%; bottom: 0; width: min(460px, 100%); box-sizing: border-box; z-index: 4;
+      max-height: 72vh; overflow-y: auto; padding: 18px 18px 24px;
+      background: var(--cream); border-radius: 26px 26px 0 0; box-shadow: 0 -4px 24px rgba(120, 90, 80, 0.22);
+      transform: translate(-50%, 110%); transition: transform 0.28s cubic-bezier(.2,.9,.3,1.2);
+    }
+    .panel.open { transform: translate(-50%, 0); }
+    /* 가방은 솥 칸 바로 위에 뜬다 */
+    #bagPanel { bottom: 108px; border-radius: 26px; max-height: calc(100vh - 220px); transform: translate(-50%, calc(100% + 140px)); }
+    #bagPanel.open { transform: translate(-50%, 0); }
+    .panel h2 { margin: 0 0 12px; font-family: var(--round); font-weight: normal; font-size: 22px; display: flex; align-items: center; gap: 8px; }
+    .panel h3 { margin: 14px 0 8px; font-family: var(--round); font-weight: normal; font-size: 16px; color: #9A8075; }
+    .panel .close { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; background: #F3E3CF; font-size: 16px; }
+    .note, .empty { margin: 4px 0; font-size: 13px; color: #9A8075; }
+    .tiles .empty { grid-column: 1 / -1; }
+
+    /* 가방·건네기·심기 칸: 아이콘 + 개수 + 이름 */
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+    .tile {
+      position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 10px 4px 8px; border-radius: 18px; background: #FFFFFF; box-shadow: 0 3px 0 rgba(160, 120, 100, 0.18);
+    }
+    .tile .ico { width: 40px; height: 40px; }
+    .tile .nm { font-size: 12px; line-height: 1.2; text-align: center; word-break: keep-all; }
+    .tile .cnt {
+      position: absolute; top: 4px; right: 6px; min-width: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+      background: #F6EAD8; font-family: var(--round); font-size: 14px;
+    }
+    .tile.on { outline: 3px solid var(--pink); background: #FFF0F5; }
+    .tile.dim { opacity: 0.4; }
+    .tile.static { cursor: default; }
+
+    /* 도감 */
+    #codexCount { font-size: 18px; color: var(--purple); }
+    #codexDone { margin: -4px 0 12px; padding: 8px 12px; border-radius: 12px; background: #FFE9B0; font-family: var(--round); text-align: center; }
+    #codexGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .card { padding: 12px 8px; border-radius: 18px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 14px; }
+    .card .ico { width: 46px; height: 46px; }
+    .card b { font-family: var(--round); font-weight: normal; font-size: 16px; }
+    .card small { font-size: 12px; color: #9A8075; }
+    .card .own { color: var(--purple); font-weight: 700; }
+    .card.unknown b { color: #B9AEB8; }
+    .card.wanted { outline: 2px dashed #FFB3C6; }
+    .card .hint { color: var(--ink); background: #FFF1C8; border-radius: 8px; padding: 4px 6px; }
+    .recipe { display: flex; align-items: center; gap: 2px; color: #B9AEB8; }
+    .recipe .mini { width: 24px; height: 24px; }
+    .recipe i { font-style: normal; font-size: 12px; }
+
+    /* 상점 */
+    #shopCoins { display: flex; align-items: center; gap: 4px; font-size: 18px; padding: 2px 10px 2px 4px; border-radius: 999px; background: #FFE9B0; }
+    #shopCoins .ico { width: 22px; height: 22px; }
+    .seed { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 8px; border-radius: 18px; background: #FFFFFF; }
+    .seed .ico.big { width: 44px; height: 44px; }
+    .seed .info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .seed .info b { font-family: var(--round); font-weight: normal; font-size: 17px; }
+    .seed small { font-size: 12px; color: #9A8075; }
+    .buy { display: flex; align-items: center; gap: 4px; padding: 8px 14px 8px 8px; border-radius: 14px; background: #FFD37A; font-family: var(--round); font-size: 17px; box-shadow: 0 3px 0 #E0B45A; }
+    .buy .ico { width: 22px; height: 22px; }
+    .buy:disabled { background: #EDE3D6; color: #B9AEB8; box-shadow: none; cursor: default; filter: grayscale(1); }
+
+    #giveWish { margin: -4px 0 12px; font-size: 15px; }
+
+    /* 요정 말풍선: 화면 좌표에 맞춰 위치를 옮긴다 */
+    #bubble {
+      position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
+      max-width: 230px; padding: 12px 16px; border-radius: 22px; background: #FFFFFF;
+      box-shadow: 0 4px 0 var(--shadow); font-family: var(--round); font-size: 17px; line-height: 1.35; text-align: center;
+      cursor: pointer; display: none;
+    }
+    #bubble::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -10px; margin-left: -10px; border: 10px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
+    #bubble small { display: block; margin-top: 4px; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size: 12px; color: var(--purple); font-weight: 700; }
+    #bubble.show { display: block; }
+    #bubble.pop { animation: pop 0.35s ease-out; }
+    @keyframes pop { 0% { transform: translate(-50%, -100%) scale(0.6); } 60% { transform: translate(-50%, -100%) scale(1.08); } }
 
     /* 프롤로그: 화면 아래 이야기 상자 */
-    #intro { position: fixed; left: 0; right: 0; bottom: 0; padding: 16px; display: flex; justify-content: center; }
+    #intro { position: fixed; left: 0; right: 0; bottom: 0; padding: 16px; display: flex; justify-content: center; z-index: 10; }
     #intro[hidden] { display: none; }
     .intro-box {
-      width: min(520px, 100%); box-sizing: border-box; padding: 20px 22px 16px; border-radius: 22px;
-      background: rgba(255, 248, 236, 0.96); box-shadow: 0 6px 24px rgba(120, 90, 80, 0.25), 0 3px 0 rgba(160, 120, 100, 0.25);
+      width: min(520px, 100%); box-sizing: border-box; padding: 20px 22px 16px; border-radius: 26px;
+      background: rgba(255, 248, 236, 0.97); box-shadow: 0 6px 24px rgba(120, 90, 80, 0.25), 0 4px 0 var(--shadow);
       cursor: pointer;
     }
-    #introText { margin: 0 0 14px; min-height: 3em; font-size: 17px; line-height: 1.6; white-space: pre-line; animation: fadeUp 0.5s ease-out; }
+    #introText { margin: 0 0 14px; min-height: 3em; font-family: var(--round); font-size: 19px; line-height: 1.55; white-space: pre-line; animation: fadeUp 0.5s ease-out; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } }
     .intro-actions { display: flex; align-items: center; gap: 10px; }
     #introDots { display: flex; gap: 6px; margin-right: auto; }
     #introDots span { width: 8px; height: 8px; border-radius: 50%; background: #E8D8C8; }
-    #introDots span.on { background: #FF9EBB; }
-    #introSkip { background: transparent; color: #B49A8A; font-size: 14px; padding: 8px; }
-    #introNext { padding: 10px 20px; border-radius: 999px; background: #FF9EBB; color: #FFFFFF; font-weight: 800; box-shadow: 0 3px 0 #E07A99; }
+    #introDots span.on { background: var(--pink); }
+    #introSkip { color: #B49A8A; font-size: 14px; padding: 8px; }
+    #introNext { padding: 10px 20px; border-radius: 999px; background: var(--pink); color: #FFFFFF; font-family: var(--round); font-size: 17px; box-shadow: 0 3px 0 var(--pink-deep); }
 
     /* 시작 화면 */
     #start {
       position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; padding: 24px; text-align: center;
+      gap: 14px; padding: 24px; text-align: center; z-index: 30;
       background: rgba(255, 241, 200, 0.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       transition: opacity 0.5s;
     }
     #start.hide { opacity: 0; pointer-events: none; }
     #start h1 {
-      margin: 0; font-size: clamp(30px, 8vw, 52px); color: #FFFFFF; letter-spacing: 1px;
-      text-shadow: 0 3px 0 #E58FA8, 0 6px 14px rgba(160, 90, 120, 0.35);
+      margin: 0; font-family: var(--round); font-weight: normal; font-size: clamp(34px, 9vw, 60px); color: #FFFFFF; letter-spacing: 1px;
+      text-shadow: 0 4px 0 #E58FA8, 0 8px 18px rgba(160, 90, 120, 0.35);
     }
-    #start p { margin: 0; font-size: 16px; color: #6B4F45; background: rgba(255, 248, 236, 0.85); padding: 6px 14px; border-radius: 999px; }
+    #start p { margin: 0; font-size: 16px; background: rgba(255, 248, 236, 0.88); padding: 6px 14px; border-radius: 999px; }
     #openBtn {
-      margin-top: 8px; padding: 16px 40px; border-radius: 999px; background: #FF9EBB; color: #FFFFFF;
-      font-size: 22px; font-weight: 800; box-shadow: 0 5px 0 #E07A99; animation: breathe 1.8s ease-in-out infinite;
+      margin-top: 8px; padding: 16px 44px; border-radius: 999px; background: var(--pink); color: #FFFFFF;
+      font-family: var(--round); font-size: 26px; box-shadow: 0 6px 0 var(--pink-deep); border: 3px solid #FFD6E2;
+      animation: breathe 1.8s ease-in-out infinite;
     }
-    #openBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #E07A99; }
+    #openBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--pink-deep); }
     @keyframes breathe { 50% { transform: scale(1.05); } }
-    .chip {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 12px 6px 8px; border-radius: 999px;
-      background: rgba(255, 248, 236, 0.92); box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25);
-      font-size: 14px; transition: opacity 0.3s;
+
+    /* ───── 휴대폰 (좁은 화면) ───── */
+    @media (max-width: 720px) {
+      #coinBadge { height: 40px; padding-right: 16px; }
+      #coinIcon { width: 34px; height: 34px; }
+      #coinCount { font-size: 22px; }
+      .icon-btn { width: 40px; height: 40px; padding: 9px; }
+      #codexBadge { height: 40px; padding: 0 12px 0 6px; }
+      #codexBadgeIcon { width: 26px; height: 26px; }
+      #codexBadgeCount { font-size: 18px; }
+      #dayGauge { top: 60px; width: 120px; }
+      #bottom { padding: 10px; gap: 10px; }
+      #tray { padding: 8px; gap: 8px; }
+      .slot { width: 54px; height: 54px; padding: 7px; }
+      .slot .plus { line-height: 40px; font-size: 24px; }
+      #brewBtn { width: 92px; height: 60px; font-size: 20px; }
+      .menu-btn { width: 66px; height: 66px; }
+      .menu-btn .ico { width: 32px; height: 32px; }
+      .menu-btn .lb { font-size: 13px; }
+      #toast { bottom: 178px; }
+      #bagPanel { bottom: 90px; max-height: calc(100vh - 200px); }
     }
-    .chip.dim { opacity: 0.45; }
-    .chip .dot { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
-    .chip .count { min-width: 1ch; text-align: right; }
-    .chip.bump { animation: bump 0.35s ease-out; }
-    @keyframes bump { 40% { transform: scale(1.18); } }
-    /* 짧은 안내 */
-    #toast {
-      position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px);
-      padding: 10px 18px; border-radius: 999px; background: rgba(255, 248, 236, 0.95);
-      box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25); font-size: 15px;
-      opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap;
-    }
-    #toast.show { opacity: 1; transform: translate(-50%, 0); }
-    @media (max-width: 480px) { .chip { font-size: 12px; padding: 4px 10px 4px 6px; } .chip .dot { width: 13px; height: 13px; } }
-
-    button { font: inherit; color: inherit; cursor: pointer; border: none; }
-    .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; flex: none; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
-
-    /* 아래쪽 버튼 줄 */
-    #bar { position: fixed; right: 12px; bottom: 16px; display: flex; gap: 8px; }
-
-    /* 패널 뒤 반투명 막: 누르면 패널이 닫힌다 */
-    #scrim { position: fixed; inset: 0; background: rgba(90, 70, 80, 0.18); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
-    #scrim.show { opacity: 1; pointer-events: auto; }
-    .round-btn {
-      padding: 10px 16px; border-radius: 999px; background: #FFF8EC; font-size: 15px; font-weight: 700;
-      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.3);
-    }
-    .round-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(160, 120, 100, 0.3); }
-
-    /* 패널 (솥, 도감): 화면 아래에서 올라오는 카드 */
-    .panel {
-      position: fixed; left: 50%; bottom: 0; width: min(440px, 100%); box-sizing: border-box;
-      max-height: 70vh; overflow-y: auto; padding: 18px 18px 22px;
-      background: #FFF8EC; border-radius: 22px 22px 0 0; box-shadow: 0 -4px 20px rgba(120, 90, 80, 0.2);
-      transform: translate(-50%, 105%); transition: transform 0.28s cubic-bezier(.2,.9,.3,1.2);
-    }
-    .panel.open { transform: translate(-50%, 0); }
-    .panel h2 { margin: 0 0 12px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-    .panel .close { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: #F3E3CF; font-size: 16px; }
-
-    #slots { display: flex; gap: 8px; margin-bottom: 14px; }
-    .slot {
-      flex: 1; min-height: 44px; border-radius: 14px; border: 2px dashed #D9C3B0;
-      display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: #B49A8A; background: transparent;
-    }
-    .slot.full { border: 2px solid #8876B8; background: #EEE8FA; color: #6B4F45; font-weight: 700; }
-    #ingredientPicker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-    .pick { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 2px 0 rgba(160,120,100,0.2); font-size: 14px; }
-    .pick.on { background: #EEE8FA; outline: 2px solid #8876B8; }
-    .pick.dim { opacity: 0.45; }
-    #brewBtn { width: 100%; padding: 13px; border-radius: 16px; background: #8876B8; color: #FFFFFF; font-size: 17px; font-weight: 700; box-shadow: 0 3px 0 #6E5E9E; }
-    #brewBtn:disabled { background: #CFC6E3; box-shadow: none; cursor: default; }
-
-    #codexDone { margin: -4px 0 12px; padding: 8px 12px; border-radius: 12px; background: #FFE9B0; font-weight: 700; text-align: center; }
-    #codexGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .card { padding: 12px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 14px; }
-    .card small { font-size: 12px; color: #9A8075; }
-    .card .own { color: #8876B8; font-weight: 700; }
-    .card.unknown b { color: #B9AEB8; }
-    /* 물약 병 아이콘: 둥근 몸통 + 병목을 CSS로 */
-    .bottle { position: relative; width: 34px; height: 34px; margin-top: 10px; border-radius: 50%; background: var(--c); box-shadow: inset -4px -4px 0 rgba(0,0,0,0.08); }
-    .bottle::before { content: ''; position: absolute; left: 11px; top: -10px; width: 12px; height: 12px; border-radius: 3px; background: #C98E6A; }
-    .card.wanted { outline: 2px dashed #FFB3C6; }
-    .card .hint { color: #6B4F45; background: #FFF1C8; border-radius: 8px; padding: 4px 6px; }
-
-    .chip.coin { background: #FFE9B0; font-weight: 700; }
-
-    /* 요정 말풍선: 화면 좌표에 맞춰 위치를 옮긴다 */
-    #bubble {
-      position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
-      max-width: 240px; padding: 10px 14px; border-radius: 16px; background: #FFFFFF;
-      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.25); font-size: 14px; line-height: 1.4; text-align: center;
-      cursor: pointer; display: none;
-    }
-    #bubble::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
-    #bubble small { display: block; margin-top: 4px; font-size: 12px; color: #8876B8; font-weight: 700; }
-    #bubble.show { display: block; }
-    #bubble.pop { animation: pop 0.35s ease-out; }
-    @keyframes pop { 0% { transform: translate(-50%, -100%) scale(0.6); } 60% { transform: translate(-50%, -100%) scale(1.08); } }
-
-    #giveWish { margin: -4px 0 12px; font-size: 15px; }
-    #giveList, #plantList { display: flex; flex-wrap: wrap; gap: 8px; }
-    .empty { margin: 4px 0; color: #9A8075; font-size: 14px; }
-
-    #shopCoins { margin-left: 4px; font-size: 15px; padding: 2px 10px; border-radius: 999px; background: #FFE9B0; }
-    .seed { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 8px; border-radius: 16px; background: #FFFFFF; }
-    .seed .info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    .seed small, .note { font-size: 12px; color: #9A8075; }
-    .dot.big { width: 28px; height: 28px; }
-    .buy { padding: 9px 14px; border-radius: 12px; background: #FFD37A; font-weight: 700; box-shadow: 0 2px 0 #E0B45A; }
-    .buy:disabled { background: #EDE3D6; color: #B9AEB8; box-shadow: none; cursor: default; }
   </style>
 
   <!--
@@ -194,37 +278,58 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div id="hud"></div>
-  <div id="toast"></div>
 
   <div id="bubble"></div>
 
-  <div id="soundBar">
-    <button class="icon-btn" id="musicBtn" aria-label="배경음 켜고 끄기">🎵</button>
-    <button class="icon-btn" id="sfxBtn" aria-label="효과음 켜고 끄기">🔊</button>
+  <!-- 왼쪽 위: 코인 -->
+  <div id="coinBadge" class="puffy" aria-label="코인"><span id="coinIcon"></span><span id="coinCount">0</span></div>
+
+  <!-- 오른쪽 위: 음악, 효과음, 도감 진행 -->
+  <div id="topRight">
+    <button class="icon-btn puffy" id="musicBtn" aria-label="배경음 켜고 끄기"></button>
+    <button class="icon-btn puffy" id="sfxBtn" aria-label="효과음 켜고 끄기"></button>
+    <button id="codexBadge" class="puffy" aria-label="도감 열기"><span id="codexBadgeIcon"></span><span id="codexBadgeCount">0/8</span></button>
   </div>
   <div id="dayGauge" aria-label="하루 시간">
     <div class="label"><span id="dayIcon">☀️</span><span id="dayName">낮</span></div>
     <div class="track"><span id="dayMarker">☀️</span></div>
   </div>
 
+  <div id="toast"></div>
   <div id="scrim"></div>
 
-  <div id="bar">
-    <button class="round-btn" id="shopBtn">🛒 상점</button>
-    <button class="round-btn" id="codexBtn">📖 도감</button>
+  <!-- 아래: 솥 칸 + 끓이기 | 가방·도감·씨앗 상점 -->
+  <div id="bottom">
+    <div id="tray" class="puffy">
+      <div id="slots"></div>
+      <button id="brewBtn" disabled><span class="pot">🫧</span>끓이기</button>
+    </div>
+    <div id="menu">
+      <button class="menu-btn puffy" id="bagBtn"><span class="ico"></span><span class="lb">가방</span></button>
+      <button class="menu-btn puffy" id="codexBtn"><span class="ico"></span><span class="lb">도감</span></button>
+      <button class="menu-btn puffy" id="shopBtn"><span class="ico"></span><span class="lb">씨앗 상점</span></button>
+    </div>
   </div>
+
+  <!-- 가방: 재료를 누르면 솥 칸에 들어간다 -->
+  <section class="panel" id="bagPanel">
+    <h2>가방 <button class="close" aria-label="닫기">✕</button></h2>
+    <p class="note">재료를 누르면 아래 솥 칸에 쏙 들어가요 (2~3개)</p>
+    <h3>재료</h3><div class="tiles" id="bagIngredients"></div>
+    <h3>물약</h3><div class="tiles" id="bagPotions"></div>
+    <h3>씨앗</h3><div class="tiles" id="bagSeeds"></div>
+  </section>
 
   <!-- 요정에게 물약 건네기: 요정이나 말풍선을 누르면 열린다 -->
   <section class="panel" id="givePanel">
     <h2>🧚 물약 건네기 <button class="close" aria-label="닫기">✕</button></h2>
     <p id="giveWish"></p>
-    <div id="giveList"></div>
+    <div class="tiles" id="giveList"></div>
   </section>
 
   <!-- 씨앗 상점 -->
   <section class="panel" id="shopPanel">
-    <h2>🛒 씨앗 상점 <span id="shopCoins"></span> <button class="close" aria-label="닫기">✕</button></h2>
+    <h2>씨앗 상점 <span id="shopCoins"></span> <button class="close" aria-label="닫기">✕</button></h2>
     <div id="shopList"></div>
     <p class="note">산 씨앗은 정원의 빈 밭을 눌러 심어요.</p>
   </section>
@@ -232,23 +337,16 @@
   <!-- 빈 밭에 심기 -->
   <section class="panel" id="plantPanel">
     <h2>🌱 어떤 씨앗을 심을까요? <button class="close" aria-label="닫기">✕</button></h2>
-    <div id="plantList"></div>
-  </section>
-
-  <!-- 솥 패널: 솥을 누르면 열린다 -->
-  <section class="panel" id="brewPanel">
-    <h2>🫧 솥에 재료 넣기 <button class="close" aria-label="닫기">✕</button></h2>
-    <div id="slots"></div>
-    <div id="ingredientPicker"></div>
-    <button id="brewBtn" disabled>끓이기</button>
+    <div class="tiles" id="plantList"></div>
   </section>
 
   <!-- 도감 -->
   <section class="panel" id="codexPanel">
-    <h2>📖 물약 도감 <span id="codexCount"></span> <button class="close" aria-label="닫기">✕</button></h2>
+    <h2>물약 도감 <span id="codexCount"></span> <button class="close" aria-label="닫기">✕</button></h2>
     <div id="codexDone" hidden>🎉 도감 완성! 물약 8종을 모두 발견했어요</div>
     <div id="codexGrid"></div>
   </section>
+
   <!-- 프롤로그: 처음 온 사람에게만 보여 준다 -->
   <div id="intro" hidden>
     <div class="intro-box" id="introBox">

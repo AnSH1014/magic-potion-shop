@@ -1,32 +1,57 @@
-// 화면 위에 겹쳐 보이는 HTML UI: 보유 재료, 안내 메시지, 솥 패널, 도감
+// 화면 위에 겹쳐 보이는 HTML UI (목업 references/05_ui_mockup.webp 배치)
+//  - 왼쪽 위: 코인 배지 / 오른쪽 위: 음악·효과음 버튼, 도감 배지, 하루 게이지
+//  - 아래 가운데: 솥 칸 3개 + 끓이기 버튼 / 아래 오른쪽: 가방·도감·씨앗 상점 버튼
+//  - 패널(가방, 도감, 상점, 물약 건네기, 씨앗 심기)은 아래에서 올라온다
 
 import { INGREDIENTS, POTIONS } from './data.js';
+import { INGREDIENT_ICONS, potionIcon, COIN_ICON, BAG_ICON, BOOK_ICON, SHOP_ICON, MUSIC_ICON, SPEAKER_ICON, SEED_ICON } from './icons.js';
 
 const ING = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
 const $ = (sel) => document.querySelector(sel);
 
-// ───── 보유 재료 ─────
-// 씨앗으로 여는 재료는 아직 없으면 흐리게 보인다.
+// 고정 아이콘 채워 넣기
+$('#coinIcon').innerHTML = COIN_ICON;
+$('#musicBtn').innerHTML = MUSIC_ICON;
+$('#sfxBtn').innerHTML = SPEAKER_ICON;
+$('#codexBadgeIcon').innerHTML = BOOK_ICON;
+$('#bagBtn .ico').innerHTML = BAG_ICON;
+$('#codexBtn .ico').innerHTML = BOOK_ICON;
+$('#shopBtn .ico').innerHTML = SHOP_ICON;
+
+// 마지막으로 받은 가방 상태 (솥 칸·가방 패널을 다시 그릴 때 쓴다)
+let inv = null;
+let unlockedIds = new Set();
+
+// ───── 코인·가방 숫자 갱신 ─────
 export function renderInventory(inventory, unlocked) {
-  const coinChip = `<div class="chip coin" data-id="coins"><span class="name">🪙</span><b class="count">${inventory.coins}</b></div>`;
-  $('#hud').innerHTML = coinChip + INGREDIENTS.map((ing) => {
-    const count = inventory.ingredients[ing.id];
-    const dim = !unlocked.has(ing.id) && count === 0;
-    return `<div class="chip${dim ? ' dim' : ''}" data-id="${ing.id}">
-      <span class="dot" style="background:${ing.color}"></span>
-      <span class="name">${ing.name}</span>
-      <b class="count">${count}</b>
-    </div>`;
-  }).join('');
+  inv = inventory;
+  unlockedIds = unlocked;
+  $('#coinCount').textContent = inventory.coins;
+  renderTray();
+  if ($('#bagPanel').classList.contains('open')) renderBag();
 }
 
-// 방금 늘어난 재료 칩을 통 튀게
+export function renderCodexBadge(codex) {
+  $('#codexBadgeCount').textContent = `${codex.discovered.length}/${POTIONS.length}`;
+}
+
+// 방금 늘어난 것을 통 튀게: 코인이면 코인 배지, 재료면 가방 버튼 위로 "+1"
+function bumpEl(el) {
+  el.classList.remove('bump');
+  void el.offsetWidth; // 애니메이션을 다시 시작하기 위한 작은 요령
+  el.classList.add('bump');
+}
 export function bumpChip(id) {
-  const chip = $(`#hud [data-id="${id}"]`);
-  if (!chip) return;
-  chip.classList.remove('bump');
-  void chip.offsetWidth; // 애니메이션을 다시 시작하기 위한 작은 요령
-  chip.classList.add('bump');
+  if (id === 'coins') return bumpEl($('#coinBadge'));
+  const bag = $('#bagBtn');
+  bumpEl(bag);
+  if (ING[id]) {
+    const f = document.createElement('div');
+    f.className = 'floater';
+    f.innerHTML = `${INGREDIENT_ICONS[id]}<b>+1</b>`;
+    bag.appendChild(f);
+    setTimeout(() => f.remove(), 900);
+  }
 }
 
 // ───── 짧은 안내 ─────
@@ -44,43 +69,28 @@ export function toast(message, ms = 1400) {
 function openPanel(id) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('open', p.id === id));
   $('#scrim').classList.add('show');
+  document.body.classList.toggle('bag-open', id === 'bagPanel');
 }
 export function closePanels() {
   document.querySelectorAll('.panel').forEach((p) => p.classList.remove('open'));
   $('#scrim').classList.remove('show');
+  document.body.classList.remove('bag-open');
 }
 document.querySelectorAll('.panel .close').forEach((b) => b.addEventListener('click', closePanels));
 $('#scrim').addEventListener('click', closePanels);
 
-// ───── 솥 패널 ─────
-// 재료를 눌러 칸에 넣고(최대 3개), 다시 누르면 뺀다. 2~3개가 차면 "끓이기"가 켜진다.
+// ───── 솥 칸 (아래 가운데) ─────
+// 가방에서 재료를 누르면 칸에 들어가고, 칸의 ✕를 누르면 빠진다. 2~3개가 차면 "끓이기"가 켜진다.
 let selected = [];
-let brewCtx = null; // { inventory, unlocked, onBrew }
+let onBrewHandler = null;
+export function setupTray(onBrew) { onBrewHandler = onBrew; }
 
-export function openBrewPanel(inventory, unlocked, onBrew) {
-  selected = [];
-  brewCtx = { inventory, unlocked, onBrew };
-  renderBrew();
-  openPanel('brewPanel');
-}
-
-function renderBrew() {
-  const { inventory, unlocked } = brewCtx;
-  // 넣은 재료 칸 3개
+function renderTray() {
   $('#slots').innerHTML = [0, 1, 2].map((i) => {
     const id = selected[i];
     return id
-      ? `<button class="slot full" data-slot="${i}"><span class="dot" style="background:${ING[id].color}"></span>${ING[id].name}</button>`
-      : `<div class="slot">${i < 2 ? '재료' : '(선택)'}</div>`;
-  }).join('');
-  // 고를 수 있는 재료 (칸에 넣은 만큼 남은 수가 줄어 보인다)
-  $('#ingredientPicker').innerHTML = INGREDIENTS.map((ing) => {
-    const left = inventory.ingredients[ing.id] - (selected.includes(ing.id) ? 1 : 0);
-    const dim = !unlocked.has(ing.id) && inventory.ingredients[ing.id] === 0;
-    const on = selected.includes(ing.id);
-    return `<button class="pick${on ? ' on' : ''}${dim ? ' dim' : ''}" data-id="${ing.id}">
-      <span class="dot" style="background:${ing.color}"></span>${ing.name} <b>${left}</b>
-    </button>`;
+      ? `<button class="slot full" data-slot="${i}" aria-label="${ING[id].name} 빼기">${INGREDIENT_ICONS[id]}<span class="x">✕</span></button>`
+      : `<button class="slot" data-slot="${i}" aria-label="재료 넣기"><span class="plus">+</span></button>`;
   }).join('');
   $('#brewBtn').disabled = selected.length < 2;
 }
@@ -88,26 +98,63 @@ function renderBrew() {
 $('#slots').addEventListener('click', (e) => {
   const b = e.target.closest('[data-slot]');
   if (!b) return;
-  selected.splice(Number(b.dataset.slot), 1);
-  renderBrew();
+  const i = Number(b.dataset.slot);
+  if (selected[i]) { selected.splice(i, 1); renderTray(); if ($('#bagPanel').classList.contains('open')) renderBag(); }
+  else openBag(); // 빈 칸을 누르면 가방이 열려 재료를 고를 수 있다
 });
 
-$('#ingredientPicker').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-id]');
-  if (!b) return;
-  const id = b.dataset.id;
+function pickIngredient(id) {
   if (selected.includes(id)) selected = selected.filter((x) => x !== id);
-  else if (brewCtx.inventory.ingredients[id] < 1) return toast('재료가 부족해요');
+  else if (inv.ingredients[id] < 1) return toast('재료가 부족해요');
   else if (selected.length >= 3) return toast('재료는 3개까지 넣을 수 있어요');
   else selected.push(id);
-  renderBrew();
-});
+  renderTray();
+  renderBag();
+}
 
 $('#brewBtn').addEventListener('click', () => {
   if (selected.length < 2) return;
   const ids = selected;
+  selected = [];
   closePanels(); // 패널을 닫아 솥에서 나오는 결과를 보여 준다
-  brewCtx.onBrew(ids);
+  renderTray();
+  onBrewHandler?.(ids);
+});
+
+// ───── 가방 ─────
+// 재료(누르면 솥 칸으로), 물약, 씨앗을 한눈에
+export function openBag() {
+  renderBag();
+  openPanel('bagPanel');
+}
+
+function tile({ icon, name, count, data = '', cls = '' }) {
+  return `<button class="tile ${cls}" ${data}>
+    <span class="ico">${icon}</span><span class="cnt">${count}</span><span class="nm">${name}</span>
+  </button>`;
+}
+
+function renderBag() {
+  if (!inv) return;
+  $('#bagIngredients').innerHTML = INGREDIENTS.map((ing) => {
+    const left = inv.ingredients[ing.id] - (selected.includes(ing.id) ? 1 : 0);
+    const dim = !unlockedIds.has(ing.id) && inv.ingredients[ing.id] === 0;
+    const on = selected.includes(ing.id);
+    return tile({ icon: INGREDIENT_ICONS[ing.id], name: ing.name, count: left, data: `data-id="${ing.id}"`, cls: `${on ? 'on' : ''} ${dim ? 'dim' : ''}` });
+  }).join('');
+  const potions = POTIONS.filter((p) => inv.potions[p.id] > 0);
+  $('#bagPotions').innerHTML = potions.length
+    ? potions.map((p) => tile({ icon: potionIcon(p.color), name: p.name, count: inv.potions[p.id], cls: 'static' })).join('')
+    : '<p class="empty">아직 만든 물약이 없어요</p>';
+  const seeds = INGREDIENTS.filter((i) => !i.starter && inv.seeds[i.id] > 0);
+  $('#bagSeeds').innerHTML = seeds.length
+    ? seeds.map((s) => tile({ icon: SEED_ICON, name: `${s.name} 씨앗`, count: inv.seeds[s.id], cls: 'static' })).join('')
+    : '<p class="empty">씨앗은 상점에서 살 수 있어요</p>';
+}
+
+$('#bagIngredients').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-id]');
+  if (b) pickIngredient(b.dataset.id);
 });
 
 // ───── 도감 ─────
@@ -119,14 +166,14 @@ export function openCodex(inventory, codex, hintFor) {
   $('#codexGrid').innerHTML = POTIONS.map((p) => {
     if (!found.has(p.id)) {
       if (p.id === hintFor) {
-        return `<div class="card unknown wanted"><div class="bottle" style="--c:${p.color}"></div><b>???</b>
+        return `<div class="card unknown wanted"><span class="ico">${potionIcon(p.color)}</span><b>???</b>
           <small>🧚 손님이 찾는 물약</small><small class="hint">💡 ${p.hint}</small></div>`;
       }
-      return `<div class="card unknown"><div class="bottle" style="--c:#D9D2DE"></div><b>???</b><small>아직 발견하지 못했어요</small></div>`;
+      return `<div class="card unknown"><span class="ico">${potionIcon('', true)}</span><b>???</b><small>아직 발견하지 못했어요</small></div>`;
     }
-    const recipe = p.recipe.map((id) => ING[id].name).join(' + ');
-    return `<div class="card"><div class="bottle" style="--c:${p.color}"></div><b>${p.name}</b>
-      <small>${recipe}</small><small class="own">보유 ${inventory.potions[p.id]}개</small></div>`;
+    const recipe = p.recipe.map((id) => `<span class="mini">${INGREDIENT_ICONS[id]}</span>`).join('<i>+</i>');
+    return `<div class="card"><span class="ico">${potionIcon(p.color)}</span><b>${p.name}</b>
+      <span class="recipe">${recipe}</span><small class="own">보유 ${inventory.potions[p.id]}개</small></div>`;
   }).join('');
   openPanel('codexPanel');
 }
@@ -162,7 +209,7 @@ export function openGivePanel(inventory, customer, onGive) {
   $('#giveWish').textContent = `“${wish.wish}”`;
   const owned = POTIONS.filter((p) => inventory.potions[p.id] > 0);
   $('#giveList').innerHTML = owned.length
-    ? owned.map((p) => `<button class="pick" data-id="${p.id}"><span class="dot" style="background:${p.color}"></span>${p.name} <b>${inventory.potions[p.id]}</b></button>`).join('')
+    ? owned.map((p) => tile({ icon: potionIcon(p.color), name: p.name, count: inventory.potions[p.id], data: `data-id="${p.id}"` })).join('')
     : `<p class="empty">아직 건넬 물약이 없어요. 솥에서 물약을 만들어 보세요!</p>`;
   $('#giveList').onclick = (e) => {
     const b = e.target.closest('[data-id]');
@@ -178,13 +225,13 @@ export function openGivePanel(inventory, customer, onGive) {
 const BUY_REASON = { coins: '코인이 부족해요', noRoom: '빈 밭이 없어요' };
 export function openShop(inventory, canBuy, onBuy) {
   const render = () => {
-    $('#shopCoins').textContent = `🪙 ${inventory.coins}`;
+    $('#shopCoins').innerHTML = `<span class="ico">${COIN_ICON}</span>${inventory.coins}`;
     $('#shopList').innerHTML = INGREDIENTS.filter((i) => !i.starter).map((s) => {
       const c = canBuy(s.id);
       return `<div class="seed">
-        <span class="dot big" style="background:${s.color}"></span>
+        <span class="ico big">${INGREDIENT_ICONS[s.id]}</span>
         <div class="info"><b>${s.name} 씨앗</b><small>가진 씨앗 ${inventory.seeds[s.id]}개${c.ok ? '' : ` · ${BUY_REASON[c.reason]}`}</small></div>
-        <button class="buy" data-id="${s.id}" ${c.ok ? '' : 'disabled'}>🪙 ${s.seedPrice}</button>
+        <button class="buy" data-id="${s.id}" ${c.ok ? '' : 'disabled'}><span class="ico">${COIN_ICON}</span>${s.seedPrice}</button>
       </div>`;
     }).join('');
   };
@@ -202,7 +249,7 @@ export function openShop(inventory, canBuy, onBuy) {
 export function openPlantPanel(inventory, onPlant) {
   const owned = INGREDIENTS.filter((i) => !i.starter && inventory.seeds[i.id] > 0);
   $('#plantList').innerHTML = owned.map((s) =>
-    `<button class="pick" data-id="${s.id}"><span class="dot" style="background:${s.color}"></span>${s.name} 씨앗 <b>${inventory.seeds[s.id]}</b></button>`).join('');
+    tile({ icon: INGREDIENT_ICONS[s.id], name: `${s.name} 씨앗`, count: inventory.seeds[s.id], data: `data-id="${s.id}"` })).join('');
   $('#plantList').onclick = (e) => {
     const b = e.target.closest('[data-id]');
     if (!b) return;

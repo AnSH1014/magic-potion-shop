@@ -2,7 +2,7 @@
 // 자라는 크기를 바꿔 준다. 수확 판정은 규칙 모듈이 하고, 여기서는 그리기만 한다.
 
 import * as THREE from 'three';
-import { mat, mesh, G, PALETTE } from './scene.js';
+import { mat, mesh, G, PALETTE, PLOT_TOP } from './scene.js';
 import { INGREDIENTS } from './data.js';
 import { growthProgress, isReady } from './rules/garden.js';
 
@@ -86,7 +86,7 @@ export function createGardenView(gardenGroup) {
     crops[i] = null;
     if (!id) return;
     const group = buildCrop(id);
-    group.position.set(plotMeshes[i].position.x, 0.13, plotMeshes[i].position.z);
+    group.position.set(plotMeshes[i].position.x, PLOT_TOP, plotMeshes[i].position.z);
     group.userData.plotIndex = i;
     group.traverse((o) => { o.userData.plotIndex = i; }); // 재료의 어느 부분을 눌러도 이 밭으로
     gardenGroup.add(group);
@@ -120,7 +120,7 @@ export function createGardenView(gardenGroup) {
         }
       }
       c.group.scale.set(s * sx, s * sy, s * sx);
-      c.group.position.y = 0.13 + y;
+      c.group.position.y = PLOT_TOP + y;
     });
   }
 

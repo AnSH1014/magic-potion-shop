@@ -18,7 +18,7 @@ import { loadGame, saveGame, hasSavedGame } from './rules/save.js';
 import { nextCustomer, serveCustomer, canBuySeed, buySeed, plantSeed } from './rules/shop.js';
 import { INGREDIENTS } from './data.js';
 import {
-  renderInventory, bumpChip, toast, openBrewPanel, openCodex,
+  renderInventory, renderCodexBadge, bumpChip, toast, openBag, setupTray, openCodex,
   setBubble, placeBubble, openGivePanel, openShop, openPlantPanel,
 } from './ui.js';
 import { createFx } from './brewfx.js';
@@ -89,6 +89,7 @@ const state = {
 // 무언가 바뀔 때마다: 화면의 보유 수를 다시 그리고 자동 저장
 function refresh() {
   renderInventory(state.inventory, unlockedSet());
+  renderCodexBadge(state.codex);
   saveGame(storage, state);
 }
 // 창을 닫거나 다른 앱으로 갈 때도 한 번 더 저장
@@ -101,10 +102,11 @@ function unlockedSet() {
   return new Set(state.garden.plots.map((p) => p.crop).filter(Boolean));
 }
 renderInventory(state.inventory, unlockedSet());
+renderCodexBadge(state.codex);
 
 // ───── 솥에서 끓이기 ─────
-const cauldronTop = cauldron.position.clone().add(new THREE.Vector3(0, 1.25, 0));
-const jellySpot = cauldron.position.clone().add(new THREE.Vector3(1.1, 0, 0.5));
+const cauldronTop = cauldron.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+const jellySpot = cauldron.position.clone().add(new THREE.Vector3(1.3, 0, 0.6));
 
 function onBrew(ids) {
   const r = brew(state.inventory, state.codex, ids);
@@ -129,7 +131,12 @@ function onBrew(ids) {
   else toast(`✨ 새 물약 발견! ${r.potion.name}`, 2600);
 }
 
-document.getElementById('codexBtn').addEventListener('click', () => openCodex(state.inventory, state.codex, state.customer?.wish));
+// 솥 칸의 "끓이기", 가방·도감 버튼
+setupTray(onBrew);
+const showCodex = () => openCodex(state.inventory, state.codex, state.customer?.wish);
+document.getElementById('codexBtn').addEventListener('click', showCodex);
+document.getElementById('codexBadge').addEventListener('click', showCodex);
+document.getElementById('bagBtn').addEventListener('click', () => openBag());
 
 // ───── 요정 손님 ─────
 // 가게 창구 앞에 서서 카메라 쪽을 비스듬히 바라본다
@@ -243,7 +250,7 @@ sfxBtn.addEventListener('click', () => {
 
 // 패널 안 버튼들을 누를 때 작은 "톡" 소리
 document.addEventListener('click', (e) => {
-  if (e.target.closest('.pick, .slot.full, .round-btn, .close, .buy')) sound.sfx.tick();
+  if (e.target.closest('.tile, .slot, .menu-btn, .close, .buy, #codexBadge')) sound.sfx.tick();
 });
 
 // ───── 씨앗 상점과 심기 ─────
@@ -304,7 +311,7 @@ function resize() {
   camera.aspect = aspect;
   camera.fov = aspect < 1 ? 50 : 40;
   camera.updateProjectionMatrix();
-  homeDist = HOME_DIST * Math.max(1, 0.9 / aspect);
+  homeDist = HOME_DIST * Math.max(1, 0.72 / aspect); // 세로 화면은 양옆이 살짝 잘려도 섬을 크게
   controls.maxDistance = homeDist * 1.6;
   // 지금 보는 방향은 그대로 두고 거리만 바꾼다
   const dir = camera.position.clone().sub(controls.target).normalize();
@@ -363,7 +370,7 @@ function pick(clientX, clientY) {
 function onTap(clientX, clientY) {
   const target = pick(clientX, clientY);
   if (!target) return;
-  if (target.type === 'cauldron') return openBrewPanel(state.inventory, unlockedSet(), onBrew);
+  if (target.type === 'cauldron') return openBag(); // 솥을 누르면 가방이 열려 재료를 고른다
   if (target.type === 'fairy') return talkToCustomer();
   if (!state.garden.plots[target.index].crop) return onEmptyPlot(target.index);
   const result = harvest(state.garden, state.inventory, target.index, Date.now());
