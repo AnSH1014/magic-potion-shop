@@ -12,8 +12,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildIsland, buildSky, PALETTE } from './scene.js';
 import { createGardenView, plotIndexOf } from './garden.js';
-import { createGarden, createInventory, harvest } from './rules/garden.js';
-import { createCodex, brew, isCodexComplete } from './rules/brew.js';
+import { harvest } from './rules/garden.js';
+import { brew, isCodexComplete } from './rules/brew.js';
+import { loadGame, saveGame } from './rules/save.js';
 import { nextCustomer, serveCustomer, canBuySeed, buySeed, plantSeed } from './rules/shop.js';
 import { INGREDIENTS } from './data.js';
 import {
@@ -63,13 +64,27 @@ scene.add(island);
 scene.add(buildSky());
 
 // 게임 상태 (6단계에서 localStorage 저장을 붙일 예정)
+// localStorage: 브라우저에 글자를 저장해 두는 작은 보관함. 창을 닫았다 열어도 남아 있다.
+// 사생활 보호 모드 등에서는 꺼내는 순간 오류가 날 수 있어서, 감싸서 넘기고 save.js가 오류를 처리한다.
+const storage = {
+  getItem: (k) => window.localStorage.getItem(k),
+  setItem: (k, v) => window.localStorage.setItem(k, v),
+};
+
+// 게임 상태: 저장된 게임이 있으면 이어서, 없거나 깨졌으면 새 게임
 const state = {
-  garden: createGarden(Date.now()),
-  inventory: createInventory(),
-  codex: createCodex(),
-  customer: null,   // 지금 와 있는 손님 { wish } (없으면 null)
+  ...loadGame(storage, Date.now()),
+  customer: null,   // 지금 와 있는 손님 { wish } (없으면 null, 저장하지 않음)
   lastWish: null,   // 바로 앞 손님의 소원 (같은 소원이 연달아 나오지 않게)
 };
+
+// 무언가 바뀔 때마다: 화면의 보유 수를 다시 그리고 자동 저장
+function refresh() {
+  renderInventory(state.inventory, unlockedSet());
+  saveGame(storage, state);
+}
+// 창을 닫거나 다른 앱으로 갈 때도 한 번 더 저장
+window.addEventListener('pagehide', () => saveGame(storage, state));
 const gardenView = createGardenView(gardenGroup);
 const fx = createFx(scene);
 
@@ -89,7 +104,7 @@ function onBrew(ids) {
     if (r.reason === 'notEnough') toast('재료가 부족해요');
     return;
   }
-  renderInventory(state.inventory, unlockedSet());
+  refresh();
   if (r.failed) {
     fx.failSmoke(cauldronTop, jellySpot);
     toast('펑! 말랑한 수상한 젤리가 나왔어요…', 2200);
@@ -117,7 +132,7 @@ function callCustomer() {
 function onGive(potionId) {
   const r = serveCustomer(state.inventory, state.customer, potionId);
   if (r.ok) {
-    renderInventory(state.inventory, unlockedSet());
+    refresh();
     bumpChip('coins');
     toast(`고마워요! 🪙 ${r.coins} 코인을 받았어요`, 2200);
     state.lastWish = state.customer.wish;
@@ -146,7 +161,7 @@ document.getElementById('shopBtn').addEventListener('click', () => {
     (id) => canBuySeed(state.inventory, state.garden, id),
     (id) => {
       if (buySeed(state.inventory, state.garden, id).ok) {
-        renderInventory(state.inventory, unlockedSet());
+        refresh();
         toast('씨앗을 샀어요! 정원의 빈 밭을 눌러 심어요', 2200);
       }
     },
@@ -158,7 +173,7 @@ function onEmptyPlot(index) {
   if (!hasSeed) return toast('빈 밭이에요. 상점에서 씨앗을 사 보세요');
   openPlantPanel(state.inventory, (seedId) => {
     if (plantSeed(state.inventory, state.garden, index, seedId, Date.now()).ok) {
-      renderInventory(state.inventory, unlockedSet());
+      refresh();
       const name = INGREDIENTS.find((x) => x.id === seedId).name;
       toast(`${name} 씨앗을 심었어요 🌱`);
     }
@@ -233,7 +248,7 @@ function onTap(clientX, clientY) {
   const result = harvest(state.garden, state.inventory, target.index, Date.now());
   if (result.ok) {
     const name = INGREDIENTS.find((x) => x.id === result.crop).name;
-    renderInventory(state.inventory, unlockedSet());
+    refresh();
     bumpChip(result.crop);
     toast(`${name} 1개 수확!`);
   } else if (result.reason === 'growing') {
