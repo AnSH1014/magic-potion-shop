@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>숲속 마법 물약 가게</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #A8D8FF; }
+    /* three.js가 그림을 그리는 캔버스. 화면 전체를 채운다. */
+    #game { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #6B4F45; }
+    /* 보유 재료 */
+    #hud {
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
+    }
+    .chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px 6px 8px; border-radius: 999px;
+      background: rgba(255, 248, 236, 0.92); box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25);
+      font-size: 14px; transition: opacity 0.3s;
+    }
+    .chip.dim { opacity: 0.45; }
+    .chip .dot { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
+    .chip .count { min-width: 1ch; text-align: right; }
+    .chip.bump { animation: bump 0.35s ease-out; }
+    @keyframes bump { 40% { transform: scale(1.18); } }
+    /* 짧은 안내 */
+    #toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px);
+      padding: 10px 18px; border-radius: 999px; background: rgba(255, 248, 236, 0.95);
+      box-shadow: 0 2px 0 rgba(160, 120, 100, 0.25); font-size: 15px;
+      opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 480px) { .chip { font-size: 12px; padding: 4px 10px 4px 6px; } .chip .dot { width: 13px; height: 13px; } }
+
+    button { font: inherit; color: inherit; cursor: pointer; border: none; }
+    .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; flex: none; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
+
+    /* 아래쪽 버튼 줄 */
+    #bar { position: fixed; right: 12px; bottom: 16px; display: flex; gap: 8px; }
+    .round-btn {
+      padding: 10px 16px; border-radius: 999px; background: #FFF8EC; font-size: 15px; font-weight: 700;
+      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.3);
+    }
+    .round-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(160, 120, 100, 0.3); }
+
+    /* 패널 (솥, 도감): 화면 아래에서 올라오는 카드 */
+    .panel {
+      position: fixed; left: 50%; bottom: 0; width: min(440px, 100%); box-sizing: border-box;
+      max-height: 70vh; overflow-y: auto; padding: 18px 18px 22px;
+      background: #FFF8EC; border-radius: 22px 22px 0 0; box-shadow: 0 -4px 20px rgba(120, 90, 80, 0.2);
+      transform: translate(-50%, 105%); transition: transform 0.28s cubic-bezier(.2,.9,.3,1.2);
+    }
+    .panel.open { transform: translate(-50%, 0); }
+    .panel h2 { margin: 0 0 12px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+    .panel .close { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: #F3E3CF; font-size: 16px; }
+
+    #slots { display: flex; gap: 8px; margin-bottom: 14px; }
+    .slot {
+      flex: 1; min-height: 44px; border-radius: 14px; border: 2px dashed #D9C3B0;
+      display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: #B49A8A; background: transparent;
+    }
+    .slot.full { border: 2px solid #8876B8; background: #EEE8FA; color: #6B4F45; font-weight: 700; }
+    #ingredientPicker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .pick { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 2px 0 rgba(160,120,100,0.2); font-size: 14px; }
+    .pick.on { background: #EEE8FA; outline: 2px solid #8876B8; }
+    .pick.dim { opacity: 0.45; }
+    #brewBtn { width: 100%; padding: 13px; border-radius: 16px; background: #8876B8; color: #FFFFFF; font-size: 17px; font-weight: 700; box-shadow: 0 3px 0 #6E5E9E; }
+    #brewBtn:disabled { background: #CFC6E3; box-shadow: none; cursor: default; }
+
+    #codexDone { margin: -4px 0 12px; padding: 8px 12px; border-radius: 12px; background: #FFE9B0; font-weight: 700; text-align: center; }
+    #codexGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .card { padding: 12px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 14px; }
+    .card small { font-size: 12px; color: #9A8075; }
+    .card .own { color: #8876B8; font-weight: 700; }
+    .card.unknown b { color: #B9AEB8; }
+    /* 물약 병 아이콘: 둥근 몸통 + 병목을 CSS로 */
+    .bottle { position: relative; width: 34px; height: 34px; margin-top: 10px; border-radius: 50%; background: var(--c); box-shadow: inset -4px -4px 0 rgba(0,0,0,0.08); }
+    .bottle::before { content: ''; position: absolute; left: 11px; top: -10px; width: 12px; height: 12px; border-radius: 3px; background: #C98E6A; }
+  </style>
+
+  <!--
+    import map: 'three'라는 이름을 CDN 주소에 연결해 둔다.
+    덕분에 npm이나 빌드 도구 없이도 JS 파일에서 import * as THREE from 'three' 라고 쓸 수 있다.
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud"></div>
+  <div id="toast"></div>
+
+  <div id="bar">
+    <button class="round-btn" id="codexBtn">📖 도감</button>
+  </div>
+
+  <!-- 솥 패널: 솥을 누르면 열린다 -->
+  <section class="panel" id="brewPanel">
+    <h2>🫧 솥에 재료 넣기 <button class="close" aria-label="닫기">✕</button></h2>
+    <div id="slots"></div>
+    <div id="ingredientPicker"></div>
+    <button id="brewBtn" disabled>끓이기</button>
+  </section>
+
+  <!-- 도감 -->
+  <section class="panel" id="codexPanel">
+    <h2>📖 물약 도감 <span id="codexCount"></span> <button class="close" aria-label="닫기">✕</button></h2>
+    <div id="codexDone" hidden>🎉 도감 완성! 물약 8종을 모두 발견했어요</div>
+    <div id="codexGrid"></div>
+  </section>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
