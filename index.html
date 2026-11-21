@@ -12,9 +12,42 @@
     body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #6B4F45; }
     /* 보유 재료 */
     #hud {
-      position: fixed; top: 12px; left: 12px; right: 12px;
+      position: fixed; top: 12px; left: 12px; right: 120px;
       display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
     }
+
+    /* 오른쪽 위 소리 버튼 (음악 / 효과음) */
+    #soundBar { position: fixed; top: 10px; right: 12px; display: flex; gap: 8px; }
+    .icon-btn {
+      width: 44px; height: 44px; border-radius: 50%; background: #FFF8EC; font-size: 20px;
+      box-shadow: 0 3px 0 rgba(160, 120, 100, 0.3); position: relative;
+    }
+    .icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(160, 120, 100, 0.3); }
+    .icon-btn.off { opacity: 0.55; }
+    .icon-btn.off::after { /* 꺼짐 표시: 비스듬한 줄 */
+      content: ''; position: absolute; left: 9px; right: 9px; top: 50%; height: 3px; border-radius: 2px;
+      background: #D9757F; transform: rotate(-40deg);
+    }
+
+    /* 시작 화면 */
+    #start {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; text-align: center;
+      background: rgba(255, 241, 200, 0.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      transition: opacity 0.5s;
+    }
+    #start.hide { opacity: 0; pointer-events: none; }
+    #start h1 {
+      margin: 0; font-size: clamp(30px, 8vw, 52px); color: #FFFFFF; letter-spacing: 1px;
+      text-shadow: 0 3px 0 #E58FA8, 0 6px 14px rgba(160, 90, 120, 0.35);
+    }
+    #start p { margin: 0; font-size: 16px; color: #6B4F45; background: rgba(255, 248, 236, 0.85); padding: 6px 14px; border-radius: 999px; }
+    #openBtn {
+      margin-top: 8px; padding: 16px 40px; border-radius: 999px; background: #FF9EBB; color: #FFFFFF;
+      font-size: 22px; font-weight: 800; box-shadow: 0 5px 0 #E07A99; animation: breathe 1.8s ease-in-out infinite;
+    }
+    #openBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #E07A99; }
+    @keyframes breathe { 50% { transform: scale(1.05); } }
     .chip {
       display: flex; align-items: center; gap: 6px;
       padding: 6px 12px 6px 8px; border-radius: 999px;
@@ -131,6 +164,11 @@
 
   <div id="bubble"></div>
 
+  <div id="soundBar">
+    <button class="icon-btn" id="musicBtn" aria-label="배경음 켜고 끄기">🎵</button>
+    <button class="icon-btn" id="sfxBtn" aria-label="효과음 켜고 끄기">🔊</button>
+  </div>
+
   <div id="bar">
     <button class="round-btn" id="shopBtn">🛒 상점</button>
     <button class="round-btn" id="codexBtn">📖 도감</button>
@@ -170,6 +208,13 @@
     <div id="codexDone" hidden>🎉 도감 완성! 물약 8종을 모두 발견했어요</div>
     <div id="codexGrid"></div>
   </section>
+  <!-- 시작 화면: "가게 열기"를 누르는 순간 소리가 켜진다 (브라우저 자동 재생 정책) -->
+  <div id="start">
+    <h1>숲속 마법 물약 가게</h1>
+    <p>재료를 기르고, 물약을 끓이고, 요정 손님의 소원을 들어주세요</p>
+    <button id="openBtn">가게 열기</button>
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -23,6 +23,7 @@ import {
 } from './ui.js';
 import { createFx } from './brewfx.js';
 import { createDayNight } from './daynight.js';
+import { createSound } from './sound.js';
 import { createFairy, FAIRY_STYLES } from './fairy.js';
 
 const canvas = document.getElementById('game');
@@ -105,16 +106,18 @@ const jellySpot = cauldron.position.clone().add(new THREE.Vector3(1.1, 0, 0.5));
 function onBrew(ids) {
   const r = brew(state.inventory, state.codex, ids);
   if (!r.ok) {
-    if (r.reason === 'notEnough') toast('재료가 부족해요');
+    if (r.reason === 'notEnough') { toast('재료가 부족해요'); sound.sfx.nope(); }
     return;
   }
   refresh();
   if (r.failed) {
     fx.failSmoke(cauldronTop, jellySpot);
+    sound.sfx.poof();
     toast('펑! 말랑한 수상한 젤리가 나왔어요…', 2200);
     return;
   }
   fx.potionRise(r.potion, cauldronTop);
+  sound.sfx.chime(r.isNew);
   fx.sparkle(cauldronTop.clone().add(new THREE.Vector3(0, 0.6, 0)), r.isNew ? 20 : 10, [r.potion.color, '#FFFFFF', '#FFD37A']);
   // 손님이 찾던 물약을 막 발견했다면 말풍선의 "처음 보는 물약" 안내를 물약 이름으로 바꾼다
   if (r.isNew && state.customer?.wish === r.potion.id) setBubble(state.customer, state.codex.discovered);
@@ -136,6 +139,7 @@ function callCustomer() {
   const looks = FAIRY_STYLES.filter((s) => s !== lastLook);
   lastLook = looks[Math.floor(Math.random() * looks.length)];
   fairy.arrive(lastLook, () => setBubble(state.customer, state.codex.discovered));
+  sound.sfx.twinkle();
 }
 
 function onGive(potionId) {
@@ -143,6 +147,7 @@ function onGive(potionId) {
   if (r.ok) {
     refresh();
     bumpChip('coins');
+    sound.sfx.coin();
     toast(`고마워요! 🪙 ${r.coins} 코인을 받았어요`, 2200);
     state.lastWish = state.customer.wish;
     state.customer = null;
@@ -157,6 +162,7 @@ function onGive(potionId) {
     fairy.shake();
     setBubble(state.customer, state.codex.discovered);
     toast('이 물약이 아니에요…');
+    sound.sfx.nope();
   }
 }
 
@@ -164,7 +170,35 @@ function talkToCustomer() {
   if (state.customer && fairy.mode === 'waiting') openGivePanel(state.inventory, state.customer, onGive);
 }
 document.getElementById('bubble').addEventListener('click', talkToCustomer);
-setTimeout(callCustomer, 1200);
+
+// ───── 소리와 시작 화면 ─────
+const sound = createSound();
+
+// "가게 열기": 이 버튼을 누르는 순간 소리를 켠다 (브라우저는 사용자가 누르기 전에는 소리를 막는다)
+document.getElementById('openBtn').addEventListener('click', () => {
+  sound.start();
+  sound.sfx.chime(true);
+  document.getElementById('start').classList.add('hide');
+  setTimeout(callCustomer, 1200); // 가게를 열면 첫 손님이 온다
+});
+
+// 음악·효과음 켜고 끄기
+const musicBtn = document.getElementById('musicBtn');
+const sfxBtn = document.getElementById('sfxBtn');
+musicBtn.addEventListener('click', () => {
+  sound.setMusic(!sound.musicOn);
+  musicBtn.classList.toggle('off', !sound.musicOn);
+});
+sfxBtn.addEventListener('click', () => {
+  sound.setSfx(!sound.sfxOn);
+  sfxBtn.classList.toggle('off', !sound.sfxOn);
+  sound.sfx.tick();
+});
+
+// 패널 안 버튼들을 누를 때 작은 "톡" 소리
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.pick, .slot.full, .round-btn, .close, .buy')) sound.sfx.tick();
+});
 
 // ───── 씨앗 상점과 심기 ─────
 document.getElementById('shopBtn').addEventListener('click', () => {
@@ -175,6 +209,7 @@ document.getElementById('shopBtn').addEventListener('click', () => {
       if (buySeed(state.inventory, state.garden, id).ok) {
         refresh();
         toast('씨앗을 샀어요! 정원의 빈 밭을 눌러 심어요', 2200);
+        sound.sfx.coin();
       }
     },
   );
@@ -188,6 +223,7 @@ function onEmptyPlot(index) {
       refresh();
       const name = INGREDIENTS.find((x) => x.id === seedId).name;
       toast(`${name} 씨앗을 심었어요 🌱`);
+      sound.sfx.plant();
     }
   });
 }
@@ -263,12 +299,14 @@ function onTap(clientX, clientY) {
     refresh();
     bumpChip(result.crop);
     toast(`${name} 1개 수확!`);
+    sound.sfx.pop();
     // 수확한 자리에서 재료 색 반짝이가 톡 터지고, 남은 싹이 통 튄다
     const color = INGREDIENTS.find((x) => x.id === result.crop).color;
     fx.sparkle(gardenView.worldPos(target.index).add(new THREE.Vector3(0, 0.5, 0)), 10, [color, '#FFFFFF', '#FFD37A']);
     gardenView.pop(target.index);
   } else if (result.reason === 'growing') {
     toast('아직 자라는 중이에요');
+    sound.sfx.tick();
   }
 }
 
