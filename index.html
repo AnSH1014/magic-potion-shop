@@ -5,11 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#A8D8FF" />
   <title>숲속 마법 물약 가게</title>
-  <!-- 동글동글한 한글 글꼴 (불러오지 못해도 기본 글꼴로 보인다) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet" />
   <style>
+    /* 글꼴 (불러오지 못해도 기기의 기본 글꼴로 보인다)
+       - 기본 글꼴: 나눔스퀘어 네오
+       - 귀여운 글꼴(제목·숫자·버튼·말풍선): 온글잎 박다현체 */
+    @font-face { font-family: 'NanumSquareNeo'; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareNeo/NanumSquareNeoTTF-aLt.woff2); font-weight: 300; font-display: swap; }
+    @font-face { font-family: 'NanumSquareNeo'; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareNeo/NanumSquareNeoTTF-bRg.woff2); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'NanumSquareNeo'; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareNeo/NanumSquareNeoTTF-cBd.woff2); font-weight: 700; font-display: swap; }
+    @font-face { font-family: 'NanumSquareNeo'; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareNeo/NanumSquareNeoTTF-dEb.woff2); font-weight: 800; font-display: swap; }
+    @font-face { font-family: 'NanumSquareNeo'; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareNeo/NanumSquareNeoTTF-eHv.woff2); font-weight: 900; font-display: swap; }
+    @font-face { font-family: 'OngleipParkDahyeon'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2411-3@1.0/Ownglyph_ParkDaHyun.woff2') format('woff2'); font-weight: normal; font-display: swap; }
+
     :root {
       --ink: #6B4F45;          /* 글자색: 따뜻한 갈색 */
       --cream: #FFF8EC;        /* 버튼·패널 바탕 */
@@ -18,10 +24,11 @@
       --pink: #FF8FB1;
       --pink-deep: #E0708F;
       --purple: #8876B8;
-      --round: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      --base: 'NanumSquareNeo', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      --round: 'OngleipParkDahyeon', 'NanumSquareNeo', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
     }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #A8D8FF; }
-    body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+    body { font-family: var(--base); color: var(--ink); -webkit-tap-highlight-color: transparent; }
     /* three.js가 그림을 그리는 캔버스. 화면 전체를 채운다. */
     #game { display: block; width: 100%; height: 100%; touch-action: none; }
     button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; touch-action: manipulation; }
@@ -44,7 +51,7 @@
       height: 46px; padding: 0 22px 0 4px; border-radius: 999px; pointer-events: none;
     }
     #coinIcon { width: 40px; height: 40px; filter: drop-shadow(0 2px 0 rgba(200, 140, 40, 0.4)); }
-    #coinCount { font-family: var(--round); font-size: 26px; margin-left: 10px; min-width: 2ch; }
+    #coinCount { font-family: var(--round); font-size: 30px; margin-left: 10px; min-width: 2ch; }
 
     /* ───── 오른쪽 위: 음악·효과음·도감 배지 ───── */
     #topRight { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); display: flex; gap: 8px; align-items: center; }
@@ -56,7 +63,7 @@
     }
     #codexBadge { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px 0 8px; border-radius: 999px; }
     #codexBadgeIcon { width: 32px; height: 32px; }
-    #codexBadgeCount { font-family: var(--round); font-size: 22px; }
+    #codexBadgeCount { font-family: var(--round); font-size: 25px; }
 
     /* 하루 시간 게이지: 막대 위를 햇님·달님 아이콘이 왼쪽에서 오른쪽으로 지나간다 */
     #dayGauge {
@@ -64,7 +71,7 @@
       border-radius: 14px; background: rgba(255, 248, 236, 0.85); box-shadow: 0 2px 0 var(--shadow);
       font-size: 13px; pointer-events: none;
     }
-    #dayGauge .label { display: flex; gap: 4px; align-items: center; font-family: var(--round); margin-bottom: 6px; }
+    #dayGauge .label { display: flex; gap: 4px; align-items: center; font-family: var(--round); font-size: 16px; margin-bottom: 6px; }
     #dayGauge .track {
       position: relative; height: 8px; border-radius: 999px;
       background: linear-gradient(90deg, #F7C8D8 0%, #A8D8FF 8%, #A8D8FF 55%, #FFB59E 63%, #3F4C82 72%, #3F4C82 92%, #F7C8D8 100%);
@@ -93,7 +100,7 @@
     #brewBtn {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
       width: 116px; height: 70px; border-radius: 26px; background: var(--pink); color: #FFFFFF;
-      font-family: var(--round); font-size: 24px; box-shadow: 0 5px 0 var(--pink-deep);
+      font-family: var(--round); font-size: 28px; box-shadow: 0 5px 0 var(--pink-deep);
       border: 3px solid #FFD6E2;
     }
     #brewBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--pink-deep); }
@@ -102,7 +109,7 @@
     #menu { display: flex; gap: 10px; }
     .menu-btn { position: relative; width: 78px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
     .menu-btn .ico { width: 40px; height: 40px; }
-    .menu-btn .lb { font-family: var(--round); font-size: 15px; }
+    .menu-btn .lb { font-family: var(--round); font-size: 18px; }
 
     /* 수확할 때 가방 위로 떠오르는 "+1" */
     .floater {
@@ -117,7 +124,7 @@
     #toast {
       position: fixed; left: 50%; bottom: 118px; transform: translate(-50%, 16px);
       padding: 10px 18px; border-radius: 999px; background: rgba(255, 248, 236, 0.96);
-      box-shadow: 0 3px 0 var(--shadow); font-size: 15px; font-family: var(--round);
+      box-shadow: 0 3px 0 var(--shadow); font-size: 18px; font-family: var(--round);
       opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap; z-index: 20;
     }
     #toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -140,8 +147,8 @@
     /* 가방은 솥 칸 바로 위에 뜬다 */
     #bagPanel { bottom: 108px; border-radius: 26px; max-height: calc(100vh - 220px); transform: translate(-50%, calc(100% + 140px)); }
     #bagPanel.open { transform: translate(-50%, 0); }
-    .panel h2 { margin: 0 0 12px; font-family: var(--round); font-weight: normal; font-size: 22px; display: flex; align-items: center; gap: 8px; }
-    .panel h3 { margin: 14px 0 8px; font-family: var(--round); font-weight: normal; font-size: 16px; color: #9A8075; }
+    .panel h2 { margin: 0 0 12px; font-family: var(--round); font-weight: normal; font-size: 26px; display: flex; align-items: center; gap: 8px; }
+    .panel h3 { margin: 14px 0 8px; font-family: var(--round); font-weight: normal; font-size: 19px; color: #9A8075; }
     .panel .close { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; background: #F3E3CF; font-size: 16px; }
     .note, .empty { margin: 4px 0; font-size: 13px; color: #9A8075; }
     .tiles .empty { grid-column: 1 / -1; }
@@ -156,7 +163,7 @@
     .tile .nm { font-size: 12px; line-height: 1.2; text-align: center; word-break: keep-all; }
     .tile .cnt {
       position: absolute; top: 4px; right: 6px; min-width: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
-      background: #F6EAD8; font-family: var(--round); font-size: 14px;
+      background: #F6EAD8; font-family: var(--round); font-size: 17px;
     }
     .tile.on { outline: 3px solid var(--pink); background: #FFF0F5; }
     .tile.dim { opacity: 0.4; }
@@ -168,7 +175,7 @@
     #codexGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .card { padding: 12px 8px; border-radius: 18px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 14px; }
     .card .ico { width: 46px; height: 46px; }
-    .card b { font-family: var(--round); font-weight: normal; font-size: 16px; }
+    .card b { font-family: var(--round); font-weight: normal; font-size: 19px; }
     .card small { font-size: 12px; color: #9A8075; }
     .card .own { color: var(--purple); font-weight: 700; }
     .card.unknown b { color: #B9AEB8; }
@@ -184,9 +191,9 @@
     .seed { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 8px; border-radius: 18px; background: #FFFFFF; }
     .seed .ico.big { width: 44px; height: 44px; }
     .seed .info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    .seed .info b { font-family: var(--round); font-weight: normal; font-size: 17px; }
+    .seed .info b { font-family: var(--round); font-weight: normal; font-size: 20px; }
     .seed small { font-size: 12px; color: #9A8075; }
-    .buy { display: flex; align-items: center; gap: 4px; padding: 8px 14px 8px 8px; border-radius: 14px; background: #FFD37A; font-family: var(--round); font-size: 17px; box-shadow: 0 3px 0 #E0B45A; }
+    .buy { display: flex; align-items: center; gap: 4px; padding: 8px 14px 8px 8px; border-radius: 14px; background: #FFD37A; font-family: var(--round); font-size: 20px; box-shadow: 0 3px 0 #E0B45A; }
     .buy .ico { width: 22px; height: 22px; }
     .buy:disabled { background: #EDE3D6; color: #B9AEB8; box-shadow: none; cursor: default; filter: grayscale(1); }
 
@@ -196,11 +203,11 @@
     #bubble {
       position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
       max-width: 230px; padding: 12px 16px; border-radius: 22px; background: #FFFFFF;
-      box-shadow: 0 4px 0 var(--shadow); font-family: var(--round); font-size: 17px; line-height: 1.35; text-align: center;
+      box-shadow: 0 4px 0 var(--shadow); font-family: var(--round); font-size: 20px; line-height: 1.35; text-align: center;
       cursor: pointer; display: none;
     }
     #bubble::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -10px; margin-left: -10px; border: 10px solid transparent; border-bottom: 0; border-top-color: #FFFFFF; }
-    #bubble small { display: block; margin-top: 4px; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size: 12px; color: var(--purple); font-weight: 700; }
+    #bubble small { display: block; margin-top: 4px; font-family: var(--base); font-size: 12px; color: var(--purple); font-weight: 700; }
     #bubble.show { display: block; }
     #bubble.pop { animation: pop 0.35s ease-out; }
     @keyframes pop { 0% { transform: translate(-50%, -100%) scale(0.6); } 60% { transform: translate(-50%, -100%) scale(1.08); } }
@@ -213,14 +220,14 @@
       background: rgba(255, 248, 236, 0.97); box-shadow: 0 6px 24px rgba(120, 90, 80, 0.25), 0 4px 0 var(--shadow);
       cursor: pointer;
     }
-    #introText { margin: 0 0 14px; min-height: 3em; font-family: var(--round); font-size: 19px; line-height: 1.55; white-space: pre-line; animation: fadeUp 0.5s ease-out; }
+    #introText { margin: 0 0 14px; min-height: 3em; font-family: var(--round); font-size: 22px; line-height: 1.55; white-space: pre-line; animation: fadeUp 0.5s ease-out; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } }
     .intro-actions { display: flex; align-items: center; gap: 10px; }
     #introDots { display: flex; gap: 6px; margin-right: auto; }
     #introDots span { width: 8px; height: 8px; border-radius: 50%; background: #E8D8C8; }
     #introDots span.on { background: var(--pink); }
     #introSkip { color: #B49A8A; font-size: 14px; padding: 8px; }
-    #introNext { padding: 10px 20px; border-radius: 999px; background: var(--pink); color: #FFFFFF; font-family: var(--round); font-size: 17px; box-shadow: 0 3px 0 var(--pink-deep); }
+    #introNext { padding: 10px 20px; border-radius: 999px; background: var(--pink); color: #FFFFFF; font-family: var(--round); font-size: 20px; box-shadow: 0 3px 0 var(--pink-deep); }
 
     /* 시작 화면 */
     #start {
@@ -237,7 +244,7 @@
     #start p { margin: 0; font-size: 16px; background: rgba(255, 248, 236, 0.88); padding: 6px 14px; border-radius: 999px; }
     #openBtn {
       margin-top: 8px; padding: 16px 44px; border-radius: 999px; background: var(--pink); color: #FFFFFF;
-      font-family: var(--round); font-size: 26px; box-shadow: 0 6px 0 var(--pink-deep); border: 3px solid #FFD6E2;
+      font-family: var(--round); font-size: 30px; box-shadow: 0 6px 0 var(--pink-deep); border: 3px solid #FFD6E2;
       animation: breathe 1.8s ease-in-out infinite;
     }
     #openBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--pink-deep); }
