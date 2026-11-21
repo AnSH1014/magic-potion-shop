@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#A8D8FF" />
   <title>숲속 마법 물약 가게</title>
   <!-- 동글동글한 한글 글꼴 (불러오지 못해도 기본 글꼴로 보인다) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +24,9 @@
     body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
     /* three.js가 그림을 그리는 캔버스. 화면 전체를 채운다. */
     #game { display: block; width: 100%; height: 100%; touch-action: none; }
-    button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+    button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; touch-action: manipulation; }
+    /* 휴대폰: 글자·버튼을 길게 눌러도 선택·메뉴가 뜨지 않게 */
+    body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
     .ico svg, svg { display: block; width: 100%; height: 100%; }
     .bump { animation: bump 0.4s ease-out; }
     @keyframes bump { 35% { transform: scale(1.15); } }
@@ -37,14 +40,14 @@
 
     /* ───── 왼쪽 위: 코인 배지 ───── */
     #coinBadge {
-      position: fixed; top: 12px; left: 12px; display: flex; align-items: center;
+      position: fixed; top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); display: flex; align-items: center;
       height: 46px; padding: 0 22px 0 4px; border-radius: 999px; pointer-events: none;
     }
     #coinIcon { width: 40px; height: 40px; filter: drop-shadow(0 2px 0 rgba(200, 140, 40, 0.4)); }
     #coinCount { font-family: var(--round); font-size: 26px; margin-left: 10px; min-width: 2ch; }
 
     /* ───── 오른쪽 위: 음악·효과음·도감 배지 ───── */
-    #topRight { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; }
+    #topRight { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); display: flex; gap: 8px; align-items: center; }
     .icon-btn { width: 46px; height: 46px; border-radius: 50%; padding: 10px; box-sizing: border-box; position: relative; }
     .icon-btn.off { opacity: 0.5; }
     .icon-btn.off::after { /* 꺼짐 표시: 비스듬한 줄 */
@@ -57,7 +60,7 @@
 
     /* 하루 시간 게이지: 막대 위를 햇님·달님 아이콘이 왼쪽에서 오른쪽으로 지나간다 */
     #dayGauge {
-      position: fixed; top: 68px; right: 12px; width: 150px; padding: 6px 10px 8px; box-sizing: border-box;
+      position: fixed; top: calc(68px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); width: 150px; padding: 6px 10px 8px; box-sizing: border-box;
       border-radius: 14px; background: rgba(255, 248, 236, 0.85); box-shadow: 0 2px 0 var(--shadow);
       font-size: 13px; pointer-events: none;
     }
@@ -70,7 +73,7 @@
 
     /* ───── 아래: 솥 칸 + 끓이기 | 가방·도감·상점 ───── */
     #bottom {
-      position: fixed; left: 0; right: 0; bottom: 0; padding: 12px;
+      position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
       display: flex; flex-wrap: wrap-reverse; justify-content: center; align-items: flex-end; gap: 12px 18px;
       pointer-events: none;
     }
@@ -249,7 +252,7 @@
       #codexBadge { height: 40px; padding: 0 12px 0 6px; }
       #codexBadgeIcon { width: 26px; height: 26px; }
       #codexBadgeCount { font-size: 18px; }
-      #dayGauge { top: 60px; width: 120px; }
+      #dayGauge { top: calc(60px + env(safe-area-inset-top)); width: 120px; }
       #bottom { padding: 10px; gap: 10px; }
       #tray { padding: 8px; gap: 8px; }
       .slot { width: 54px; height: 54px; padding: 7px; }

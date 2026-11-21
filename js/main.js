@@ -391,12 +391,21 @@ function onTap(clientX, clientY) {
 }
 
 // 섬을 돌리려고 드래그한 것과 "누른 것"을 구분한다: 거의 안 움직이고 뗐을 때만 누른 것으로 본다
+// 휴대폰에서 두 손가락으로 확대·축소할 때는 누른 것으로 보지 않는다
 let down = null;
-canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+const fingers = new Set();
+canvas.addEventListener('pointerdown', (e) => {
+  fingers.add(e.pointerId);
+  down = fingers.size === 1 ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null;
+});
 canvas.addEventListener('pointerup', (e) => {
-  if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) onTap(e.clientX, e.clientY);
+  fingers.delete(e.pointerId);
+  // 손가락은 마우스보다 살짝 흔들리므로 조금 더 너그럽게 본다
+  const slop = e.pointerType === 'touch' ? 14 : 8;
+  if (down && down.id === e.pointerId && Math.hypot(e.clientX - down.x, e.clientY - down.y) < slop) onTap(e.clientX, e.clientY);
   down = null;
 });
+canvas.addEventListener('pointercancel', (e) => { fingers.delete(e.pointerId); down = null; });
 // PC에서 재료 위에 마우스를 올리면 손가락 모양 커서
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons) return;
