@@ -107,12 +107,32 @@ export function createGardenView(gardenGroup) {
         s *= 1 + Math.sin(time * 4 + i) * 0.04;
         y = Math.abs(Math.sin(time * 2 + i)) * 0.04;
       }
-      c.group.scale.setScalar(s);
+      // 수확 직후 통통: 위아래로 늘었다 줄었다 (말랑한 젤리처럼 찌그러짐)
+      let sx = 1, sy = 1;
+      if (pops[i] === 'start') pops[i] = time;
+      if (typeof pops[i] === 'number') {
+        const k = (time - pops[i]) / 0.5;
+        if (k >= 1) pops[i] = null;
+        else {
+          const w = Math.sin(k * Math.PI * 3) * 0.45 * (1 - k);
+          sy = 1 + w; sx = 1 - w * 0.5;
+          y += Math.max(0, w) * 0.15;
+        }
+      }
+      c.group.scale.set(s * sx, s * sy, s * sx);
       c.group.position.y = 0.13 + y;
     });
   }
 
-  return { update, objects: gardenGroup };
+  const pops = []; // 밭 번호별 통통 효과 시작 시각
+  function pop(i) { pops[i] = 'start'; }
+
+  // 밭 가운데의 월드 좌표 (반짝이를 터뜨릴 자리)
+  function worldPos(i) {
+    return plotMeshes[i].getWorldPosition(new THREE.Vector3());
+  }
+
+  return { update, pop, worldPos, objects: gardenGroup };
 }
 
 // 레이캐스터가 맞힌 물체에서 밭 번호를 찾는다 (없으면 -1)

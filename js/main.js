@@ -22,7 +22,8 @@ import {
   setBubble, placeBubble, openGivePanel, openShop, openPlantPanel,
 } from './ui.js';
 import { createFx } from './brewfx.js';
-import { createFairy } from './fairy.js';
+import { createDayNight } from './daynight.js';
+import { createFairy, FAIRY_STYLES } from './fairy.js';
 
 const canvas = document.getElementById('game');
 
@@ -57,6 +58,9 @@ s.left = -8; s.right = 8; s.top = 8; s.bottom = -8; s.near = 1; s.far = 30;
 sun.shadow.bias = -0.001;
 sun.shadow.radius = 4;
 scene.add(sun);
+
+// 낮과 밤 (하루 약 5분): 하늘색과 조명만 바뀐다
+const dayNight = createDayNight({ scene, hemi, sun });
 
 // 섬과 하늘 넣기
 const { island, garden: gardenGroup, cauldron } = buildIsland();
@@ -111,6 +115,7 @@ function onBrew(ids) {
     return;
   }
   fx.potionRise(r.potion, cauldronTop);
+  fx.sparkle(cauldronTop.clone().add(new THREE.Vector3(0, 0.6, 0)), r.isNew ? 20 : 10, [r.potion.color, '#FFFFFF', '#FFD37A']);
   // 손님이 찾던 물약을 막 발견했다면 말풍선의 "처음 보는 물약" 안내를 물약 이름으로 바꾼다
   if (r.isNew && state.customer?.wish === r.potion.id) setBubble(state.customer, state.codex.discovered);
   if (!r.isNew) toast(`${r.potion.name} 완성!`, 2000);
@@ -124,9 +129,13 @@ document.getElementById('codexBtn').addEventListener('click', () => openCodex(st
 // 가게 창구 앞에 서서 카메라 쪽을 비스듬히 바라본다
 const fairy = createFairy(scene, new THREE.Vector3(0.5, 0, 1.7), 0.3);
 
+// 손님 모습은 꽃·크리스탈·버섯·별 요정 중 하나 (바로 앞 손님과 다른 요정으로)
+let lastLook = null;
 function callCustomer() {
   state.customer = nextCustomer(state.garden, state.lastWish);
-  fairy.arrive(() => setBubble(state.customer, state.codex.discovered));
+  const looks = FAIRY_STYLES.filter((s) => s !== lastLook);
+  lastLook = looks[Math.floor(Math.random() * looks.length)];
+  fairy.arrive(lastLook, () => setBubble(state.customer, state.codex.discovered));
 }
 
 function onGive(potionId) {
@@ -138,8 +147,11 @@ function onGive(potionId) {
     state.lastWish = state.customer.wish;
     state.customer = null;
     setBubble(null);
-    fairy.leave();
-    setTimeout(callCustomer, 3000); // 잠시 뒤 다음 손님
+    // 기뻐서 통통 뛰고, 금빛 반짝이가 터진 뒤 날아간다
+    fairy.hop();
+    fx.sparkle(fairy.bubbleAnchor().clone().add(new THREE.Vector3(0, -0.6, 0)), 14, ['#FFD37A', '#FFF1C8', '#FFE27A']);
+    setTimeout(() => fairy.leave(), 600);
+    setTimeout(callCustomer, 3600); // 잠시 뒤 다음 손님
   } else if (r.reason === 'wrong') {
     // 받지 않고 고개를 저으며 소원을 다시 말한다
     fairy.shake();
@@ -251,6 +263,10 @@ function onTap(clientX, clientY) {
     refresh();
     bumpChip(result.crop);
     toast(`${name} 1개 수확!`);
+    // 수확한 자리에서 재료 색 반짝이가 톡 터지고, 남은 싹이 통 튄다
+    const color = INGREDIENTS.find((x) => x.id === result.crop).color;
+    fx.sparkle(gardenView.worldPos(target.index).add(new THREE.Vector3(0, 0.5, 0)), 10, [color, '#FFFFFF', '#FFD37A']);
+    gardenView.pop(target.index);
   } else if (result.reason === 'growing') {
     toast('아직 자라는 중이에요');
   }
@@ -287,6 +303,7 @@ function tick() {
   gardenView.update(state.garden, Date.now(), time);
   fx.tick(dt);
   fairy.update(dt, time);
+  dayNight.update(Date.now());
   controls.update();
   updateBubble();
   renderer.render(scene, camera);

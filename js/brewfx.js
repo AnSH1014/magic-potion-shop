@@ -107,5 +107,29 @@ export function createFx(scene) {
     }, () => scene.remove(jelly));
   }
 
-  return { tick, potionRise, failSmoke };
+  // 반짝이: 작은 별 조각들이 톡 터져 퍼지며 빙글 돌다가 사라진다 (수확·조합·판매)
+  const sparkGeo = new THREE.OctahedronGeometry(1);
+  function sparkle(at, count = 12, colors = ['#FFD37A', '#FFFFFF']) {
+    for (let i = 0; i < count; i++) {
+      // MeshBasicMaterial: 조명과 상관없이 늘 같은 밝기로 보이는 재질 → 밤에도 반짝반짝
+      const m = new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 });
+      const s = new THREE.Mesh(sparkGeo, m);
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const speed = 1.2 + Math.random() * 1.2;
+      const vel = new THREE.Vector3(Math.cos(a) * speed, 1.8 + Math.random() * 1.5, Math.sin(a) * speed);
+      const size = 0.06 + Math.random() * 0.05;
+      const spin = (Math.random() - 0.5) * 12;
+      s.position.copy(at);
+      scene.add(s);
+      play(0.9 + Math.random() * 0.3, (k, t) => {
+        s.position.set(at.x + vel.x * t, at.y + vel.y * t - 2.5 * t * t, at.z + vel.z * t); // 살짝 떨어지는 포물선
+        s.rotation.set(t * spin, t * spin * 0.7, 0);
+        const grow = Math.min(1, k * 5);                               // 톡 커졌다가
+        s.scale.set(size * grow, size * 1.5 * grow, size * 0.5 * grow); // 납작한 별 모양
+        m.opacity = 1 - k * k;                                         // 서서히 사라짐
+      }, () => { scene.remove(s); m.dispose(); });
+    }
+  }
+
+  return { tick, potionRise, failSmoke, sparkle };
 }
