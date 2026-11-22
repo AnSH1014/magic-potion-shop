@@ -17,7 +17,7 @@ export const INGREDIENTS = [
 export const POTIONS = [
   { id: 'healing',  name: '호호 치유 물약',  recipe: ['dewflower', 'mint'],                 bottle: 'round',    color: '#9FE8D0', price: 10, hint: '시원한 잎과 맑은 이슬이 만나면…', wish: '넘어져서 무릎이 아파요… 낫게 해 주세요' },
   { id: 'sleepy',   name: '새근새근 물약',   recipe: ['dewflower', 'mushroom'],             bottle: 'cylinder', color: '#C9B3F0', price: 10, hint: '꽃과 버섯이 함께 꿈을 꿔요', wish: '요즘 밤에 잠이 안 와요' },
-  { id: 'energy',   name: '뿜뿜 기운 물약',  recipe: ['mushroom', 'mint'],                  bottle: 'cone',     color: '#FFB3C6', price: 12, hint: '통통 버섯에 상쾌한 기운을 더해요', wish: '힘이 하나도 없어요. 기운 내고 싶어요!' },
+  { id: 'energy',   name: '뿜뿜 기운 물약',  recipe: ['mushroom', 'mint'],                  bottle: 'cone',     color: '#FFB3C6', price: 12, hint: '콩콩버섯에 상쾌한 기운을 더해요', wish: '힘이 하나도 없어요. 기운 내고 싶어요!' },
   { id: 'sparkle',  name: '반짝반짝 물약',   recipe: ['starberry', 'dewflower'],            bottle: 'round',    color: '#FFE27A', price: 20, hint: '별빛이 이슬에 비치면…', wish: '밤길이 너무 어두워요' },
   { id: 'laugh',    name: '깔깔 웃음 물약',  recipe: ['starberry', 'mushroom'],             bottle: 'cylinder', color: '#FFCBA4', price: 22, hint: '달콤한 열매가 버섯을 간질여요', wish: '기분이 울적해요. 웃고 싶어요' },
   { id: 'luck',     name: '네잎 행운 물약',  recipe: ['starberry', 'mint', 'mushroom'],     bottle: 'cube',     color: '#CDEB8B', price: 30, hint: '세 가지를 함께 넣어 보세요. 별 하나가 꼭 필요해요', wish: '내일 요정 시험이 있어요! 행운이 필요해요' },
